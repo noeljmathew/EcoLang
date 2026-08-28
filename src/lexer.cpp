@@ -2,11 +2,13 @@
 
 #include <cctype>
 
+using namespace std;
+
 Lexer::Lexer(const std::string& source)
     : source(source), start(0), current(0), line(1), tokenLine(1) {
 }
 
-std::vector<Token> Lexer::scanTokens() {
+vector<Token> Lexer::scanTokens() {
     while (!isAtEnd()) {
         start = current;
         tokenLine = line;
@@ -51,15 +53,35 @@ void Lexer::scanToken() {
         case '+': addToken(TokenType::PLUS); break;
         case '-': addToken(TokenType::MINUS); break;
         case '*': addToken(TokenType::STAR); break;
-        case '/': addToken(TokenType::SLASH); break;
+        case '/':
+            if (peek() == '/') {
+                while (peek() != '\n' && !isAtEnd()) {
+                    advance();
+                }
+            } else if (peek() == '*') {
+                advance();
+
+                while (!isAtEnd()) {
+                    char commentCharacter = advance();
+                    if (commentCharacter == '\n') {
+                        line++;
+                    } else if (commentCharacter == '*' && peek() == '/') {
+                        advance();
+                        break;
+                    }
+                }
+            } else {
+                addToken(TokenType::SLASH);
+            }
+            break;
         case '=': addToken(TokenType::EQUAL); break;
         case '(': addToken(TokenType::LEFT_PAREN); break;
         case ')': addToken(TokenType::RIGHT_PAREN); break;
         case '"': string(); break;
         default:
-            if (std::isalpha(static_cast<unsigned char>(character)) || character == '_') {
+            if (isalpha(static_cast<unsigned char>(character)) || character == '_') {
                 identifier();
-            } else if (std::isdigit(static_cast<unsigned char>(character))) {
+            } else if (isdigit(static_cast<unsigned char>(character))) {
                 number();
             } else {
                 addToken(TokenType::UNKNOWN);
@@ -69,7 +91,7 @@ void Lexer::scanToken() {
 }
 
 void Lexer::identifier() {
-    while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') {
+    while (isalnum(static_cast<unsigned char>(peek())) || peek() == '_') {
         advance();
     }
 
@@ -89,7 +111,7 @@ void Lexer::identifier() {
 }
 
 void Lexer::number() {
-    while (std::isdigit(static_cast<unsigned char>(peek()))) {
+    while (isdigit(static_cast<unsigned char>(peek()))) {
         advance();
     }
 
