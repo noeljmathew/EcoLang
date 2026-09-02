@@ -33,20 +33,23 @@ std::unique_ptr<Statement> Parser::statement() {
 }
 
 std::unique_ptr<Statement> Parser::letStatement() {
+    int line = previous().line;
     const Token& name = consume(TokenType::IDENTIFIER,
                                 "expected an identifier after 'let'.");
     consume(TokenType::EQUAL, "expected '=' after variable name.");
 
-    return std::make_unique<LetStatement>(name.lexeme, expression());
+    return std::make_unique<LetStatement>(name.lexeme, expression(), line);
 }
 
 std::unique_ptr<Statement> Parser::printStatement() {
-    return std::make_unique<PrintStatement>(expression());
+    int line = previous().line;
+    return std::make_unique<PrintStatement>(expression(), line);
 }
 
 std::unique_ptr<Statement> Parser::repeatStatement() {
+    int line = previous().line;
     std::unique_ptr<RepeatStatement> repeat =
-        std::make_unique<RepeatStatement>(expression());
+        std::make_unique<RepeatStatement>(expression(), line);
 
     while (!check(TokenType::END) && !isAtEnd()) {
         repeat->body.push_back(statement());
@@ -61,26 +64,28 @@ std::unique_ptr<Statement> Parser::repeatStatement() {
 }
 
 std::unique_ptr<Expression> Parser::expression() {
+    int line = peek().line;
     std::unique_ptr<Expression> left = term();
 
     while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
         char operatorSymbol = advance().lexeme[0];
         std::unique_ptr<Expression> right = term();
         left = std::make_unique<BinaryExpression>(std::move(left), operatorSymbol,
-                                                  std::move(right));
+                                                  std::move(right), line);
     }
 
     return left;
 }
 
 std::unique_ptr<Expression> Parser::term() {
+    int line = peek().line;
     std::unique_ptr<Expression> left = factor();
 
     while (check(TokenType::STAR) || check(TokenType::SLASH)) {
         char operatorSymbol = advance().lexeme[0];
         std::unique_ptr<Expression> right = factor();
         left = std::make_unique<BinaryExpression>(std::move(left), operatorSymbol,
-                                                  std::move(right));
+                                                  std::move(right), line);
     }
 
     return left;
@@ -89,7 +94,7 @@ std::unique_ptr<Expression> Parser::term() {
 std::unique_ptr<Expression> Parser::factor() {
     if (match(TokenType::NUMBER)) {
         try {
-            return std::make_unique<NumberExpression>(std::stoi(previous().lexeme));
+            return std::make_unique<NumberExpression>(std::stoi(previous().lexeme), previous().line);
         } catch (const std::exception&) {
             throw error(previous(), "invalid integer number.");
         }
@@ -97,11 +102,11 @@ std::unique_ptr<Expression> Parser::factor() {
 
     if (match(TokenType::STRING)) {
         const std::string& text = previous().lexeme;
-        return std::make_unique<StringExpression>(text.substr(1, text.length() - 2));
+        return std::make_unique<StringExpression>(text.substr(1, text.length() - 2), previous().line);
     }
 
     if (match(TokenType::IDENTIFIER)) {
-        return std::make_unique<VariableExpression>(previous().lexeme);
+        return std::make_unique<VariableExpression>(previous().lexeme, previous().line);
     }
 
     if (match(TokenType::LEFT_PAREN)) {

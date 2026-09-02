@@ -4,79 +4,70 @@
 #include <string>
 #include <vector>
 
+#include "codegen.h"
+#include "energy.h"
+#include "ir.h"
 #include "lexer.h"
+#include "optimizer.h"
 #include "parser.h"
+#include "report.h"
+#include "semantic.h"
 
 using namespace std;
 
-void printIndent(int level) {
-    cout << string(level * 2, ' ');
-}
-
-void printExpression(const Expression* expression, int level) {
-    if (const NumberExpression* number = dynamic_cast<const NumberExpression*>(expression)) {
-        printIndent(level);
-        cout << "NumberExpression: " << number->value << '\n';
-    } else if (const StringExpression* string = dynamic_cast<const StringExpression*>(expression)) {
-        printIndent(level);
-        cout << "StringExpression: \"" << string->value << "\"\n";
-    } else if (const VariableExpression* variable =
-                   dynamic_cast<const VariableExpression*>(expression)) {
-        printIndent(level);
-        cout << "VariableExpression: " << variable->name << '\n';
-    } else if (const BinaryExpression* binary =
-                   dynamic_cast<const BinaryExpression*>(expression)) {
-        printIndent(level);
-        cout << "BinaryExpression: " << binary->operatorSymbol << '\n';
-        printExpression(binary->left.get(), level + 1);
-        printExpression(binary->right.get(), level + 1);
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        cerr << "Usage: " << argv[0] << " <path-to-.eco-file>\n";
+        return 1;
     }
-}
 
-void printStatement(const Statement* statement, int level) {
-    if (const LetStatement* let = dynamic_cast<const LetStatement*>(statement)) {
-        printIndent(level);
-        cout << "LetStatement: " << let->name << '\n';
-        printExpression(let->value.get(), level + 1);
-    } else if (const PrintStatement* print = dynamic_cast<const PrintStatement*>(statement)) {
-        printIndent(level);
-        cout << "PrintStatement\n";
-        printExpression(print->expression.get(), level + 1);
-    } else if (const RepeatStatement* repeat = dynamic_cast<const RepeatStatement*>(statement)) {
-        printIndent(level);
-        cout << "RepeatStatement\n";
-        printIndent(level + 1);
-        cout << "Count:\n";
-        printExpression(repeat->count.get(), level + 2);
-        printIndent(level + 1);
-        cout << "Body:\n";
-        for (const unique_ptr<Statement>& bodyStatement : repeat->body) {
-            printStatement(bodyStatement.get(), level + 2);
-        }
-    }
-}
-
-int main() {
-    ifstream file("samples/hello.eco");
+    ifstream file(argv[1]);
     if (!file) {
-        cerr << "Could not open samples/hello.eco\n";
+        cerr << "Could not open " << argv[1] << '\n';
         return 1;
     }
 
     stringstream buffer;
     buffer << file.rdbuf();
 
-    Lexer lexer(buffer.str());
-    vector<Token> tokens = lexer.scanTokens();
-
     try {
+        Lexer lexer(buffer.str());
+        vector<Token> tokens = lexer.scanTokens();
+
         Parser parser(tokens);
         unique_ptr<Program> program = parser.parse();
 
-        cout << "Program\n";
-        for (const unique_ptr<Statement>& statement : program->statements) {
-            printStatement(statement.get(), 1);
-        }
+        SemanticAnalyzer analyzer;
+        analyzer.analyze(*program);
+
+        IRGenerator irGenerator;
+        IRProgram ir = irGenerator.generate(*program);
+
+        // Energy analysis and code generation must both see the
+        // OPTIMIZED IR, not the raw IR that came straight out of the
+        // IR generator.
+        Optimizer optimizer;
+        IRProgram optimizedIr = optimizer.optimize(ir);
+
+        EnergyReport energyReport = analyzeEnergy(optimizedIr);
+
+        CodeGenerator codeGenerator;
+        string targetCode = codeGenerator.generate(optimizedIr);
+
+        ReportGenerator reportGenerator;
+        string energyReportText = reportGenerator.generate(energyReport);
+
+        cout << "========================================\n";
+        cout << "           EcoLang Compiler\n";
+        cout << "========================================\n\n";
+
+        cout << "[Code Generation]\n";
+        cout << "-----------------\n";
+        cout << targetCode << '\n';
+
+        cout << "[Energy Report]\n";
+        cout << "----------------\n";
+        cout << energyReportText;
     } catch (const runtime_error& error) {
         cerr << error.what() << '\n';
         return 1;

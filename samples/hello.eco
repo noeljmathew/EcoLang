@@ -1,15 +1,20 @@
-/* // TEST 1: Arithmetic and operator precedence
+
+// TEST 1: Arithmetic and operator precedence
 let x = 2 + 3 * 4
 print x
+
 /*
-/*
-// TEST 2: Repeat loop
-repeat 3
-    print "Hello"
+// TEST 2: Nested repeat loop
+repeat 2
+    repeat 3
+        print "Hi"
+    end
 end
 */
-
-
+/*
 // TEST 3: Error detection - missing end
+
 repeat 3
     print "Hello"
+
+*/

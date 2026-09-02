@@ -1,0 +1,4 @@
+// Demonstrates a simple repeat loop.
+repeat 5
+    print "Hello"
+end

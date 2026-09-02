@@ -6,19 +6,32 @@
 #include <utility>
 #include <vector>
 
+// Every AST node remembers the source line it came from, so later
+// compiler stages (semantic analysis, IR generation, etc.) can report
+// useful "error on line N" messages without having to re-derive it.
 class Expression {
 public:
+    explicit Expression(int line) : line(line) {
+    }
+
     virtual ~Expression() = default;
+
+    int line;
 };
 
 class Statement {
 public:
+    explicit Statement(int line) : line(line) {
+    }
+
     virtual ~Statement() = default;
+
+    int line;
 };
 
 class NumberExpression : public Expression {
 public:
-    explicit NumberExpression(int value) : value(value) {
+    NumberExpression(int value, int line) : Expression(line), value(value) {
     }
 
     int value;
@@ -26,7 +39,7 @@ public:
 
 class StringExpression : public Expression {
 public:
-    explicit StringExpression(const std::string& value) : value(value) {
+    StringExpression(const std::string& value, int line) : Expression(line), value(value) {
     }
 
     std::string value;
@@ -34,7 +47,7 @@ public:
 
 class VariableExpression : public Expression {
 public:
-    explicit VariableExpression(const std::string& name) : name(name) {
+    VariableExpression(const std::string& name, int line) : Expression(line), name(name) {
     }
 
     std::string name;
@@ -43,8 +56,9 @@ public:
 class BinaryExpression : public Expression {
 public:
     BinaryExpression(std::unique_ptr<Expression> left, char operatorSymbol,
-                     std::unique_ptr<Expression> right)
-        : left(std::move(left)), operatorSymbol(operatorSymbol), right(std::move(right)) {
+                     std::unique_ptr<Expression> right, int line)
+        : Expression(line), left(std::move(left)), operatorSymbol(operatorSymbol),
+          right(std::move(right)) {
     }
 
     std::unique_ptr<Expression> left;
@@ -54,8 +68,8 @@ public:
 
 class LetStatement : public Statement {
 public:
-    LetStatement(const std::string& name, std::unique_ptr<Expression> value)
-        : name(name), value(std::move(value)) {
+    LetStatement(const std::string& name, std::unique_ptr<Expression> value, int line)
+        : Statement(line), name(name), value(std::move(value)) {
     }
 
     std::string name;
@@ -64,8 +78,8 @@ public:
 
 class PrintStatement : public Statement {
 public:
-    explicit PrintStatement(std::unique_ptr<Expression> expression)
-        : expression(std::move(expression)) {
+    PrintStatement(std::unique_ptr<Expression> expression, int line)
+        : Statement(line), expression(std::move(expression)) {
     }
 
     std::unique_ptr<Expression> expression;
@@ -73,8 +87,8 @@ public:
 
 class RepeatStatement : public Statement {
 public:
-    explicit RepeatStatement(std::unique_ptr<Expression> count)
-        : count(std::move(count)) {
+    RepeatStatement(std::unique_ptr<Expression> count, int line)
+        : Statement(line), count(std::move(count)) {
     }
 
     std::unique_ptr<Expression> count;

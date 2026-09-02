@@ -84,7 +84,7 @@ void Lexer::scanToken() {
             } else if (isdigit(static_cast<unsigned char>(character))) {
                 number();
             } else {
-                addToken(TokenType::UNKNOWN);
+                throw error(tokenLine, "invalid character '" + std::string(1, character) + "'.");
             }
             break;
     }
@@ -115,10 +115,23 @@ void Lexer::number() {
         advance();
     }
 
+    // A digit run immediately followed by a letter (e.g. "123abc") is not a
+    // valid number and not a separate identifier either - it's almost
+    // certainly a typo, so we report it as one bad token instead of quietly
+    // splitting it into "123" and "abc".
+    if (isalpha(static_cast<unsigned char>(peek())) || peek() == '_') {
+        while (isalnum(static_cast<unsigned char>(peek())) || peek() == '_') {
+            advance();
+        }
+        throw error(tokenLine, "invalid number '" + source.substr(start, current - start) + "'.");
+    }
+
     addToken(TokenType::NUMBER);
 }
 
 void Lexer::string() {
+    int stringStartLine = tokenLine;
+
     while (peek() != '"' && !isAtEnd()) {
         if (peek() == '\n') {
             line++;
@@ -127,10 +140,13 @@ void Lexer::string() {
     }
 
     if (isAtEnd()) {
-        addToken(TokenType::UNKNOWN);
-        return;
+        throw error(stringStartLine, "unterminated string.");
     }
 
     advance();
     addToken(TokenType::STRING);
+}
+
+std::runtime_error Lexer::error(int line, const std::string& message) const {
+    return std::runtime_error("Lexical error on line " + std::to_string(line) + ": " + message);
 }

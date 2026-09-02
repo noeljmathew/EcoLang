@@ -1,0 +1,6 @@
+// Demonstrates nested repeat loops.
+repeat 3
+    repeat 2
+        print "Hi"
+    end
+end
