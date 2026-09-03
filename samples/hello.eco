@@ -1,49 +1,42 @@
-// EcoLang demonstration program.
-// Shows variable declarations, arithmetic, constant folding,
-// constant propagation, algebraic simplification, and loops.
+// A small order calculator for a fruit stand.
+// Computes the cost of one order, then processes several similar
+// orders, printing a short summary for each.
 
-// --- Constant folding ---
-let sum = 10 + 20
-let product = 5 * 4
-let precedence = 2 + 3 * 4
-let quotient = 100 / 5
+let applePrice = 30
+let orangePrice = 25
+let quantity = 4
 
-// --- Chained expressions (values reused across expressions) ---
-let total = sum + product
-let average = total / 2
+let appleCost = applePrice * quantity
+let orangeCost = orangePrice * quantity
+let subtotal = appleCost + orangeCost
 
-// --- Algebraic simplification ---
-let a = total + 0
-let b = 0 + total
-let c = total - 0
-let d = total * 1
-let e = 1 * total
-let f = total * 0
-let g = 0 * total
+let discount = subtotal / 10
+let total = subtotal - discount
 
-print sum
-print product
-print precedence
-print quotient
+print "Order summary"
+print applePrice
+print orangePrice
+print appleCost
+print orangeCost
+print subtotal
+print discount
 print total
-print average
-print a
-print b
-print c
-print d
-print e
-print f
-print g
 
-// --- A repeat loop ---
+// Delivery fee depends on the distance from the warehouse to the stand.
+let baseFee = 2 * (3 + 7)
+let deliveryFee = baseFee + 0
+let finalTotal = total + deliveryFee
+
+print deliveryFee
+print finalTotal
+
+// Process a batch of identical orders and pack each one.
 repeat 3
-    print "Looping"
-    print total
-end
+    let batchTotal = finalTotal * 1
+    print "Processing batch"
+    print batchTotal
 
-// --- Nested repeat loops (2 x 3 = 6 total inner iterations) ---
-repeat 2
-    repeat 3
-        print "Nested"
+    repeat 2
+        print "Packing item"
     end
 end
