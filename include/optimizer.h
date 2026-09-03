@@ -27,9 +27,46 @@
 // Never reorders PRINT / LOOP_START / LOOP_END instructions, never
 // removes a user-named STORE, and only folds integer arithmetic (never
 // string concatenation).
+
+// Simple counts describing what the most recent optimize() call actually
+// did, computed directly from real transformations the optimizer already
+// performs (nothing here is estimated or hard-coded):
+//   - originalInstructionCount / optimizedInstructionCount / instructionsRemoved
+//     come straight from the input and output IRProgram sizes.
+//   - constantFoldingCount is incremented exactly once per BINARY_OP that
+//     gets replaced by a computed constant STORE.
+//   - constantPropagationCount is incremented exactly once per operand
+//     that gets substituted with a previously-known constant value (a
+//     Name resolved against the current constant map), regardless of
+//     which instruction it happens in.
+//   - algebraicSimplificationCount is incremented exactly once per
+//     BINARY_OP rewritten via one of the seven identities, i.e. only when
+//     one side is a known identity constant (0 or 1) and the other side
+//     is NOT already a compile-time constant (if both sides are already
+//     constants, that BINARY_OP is fully folded instead, and is counted
+//     under constantFoldingCount, not here).
+//   - deadTemporaryEliminationCount is incremented exactly once per
+//     compiler-generated "$t..." instruction dropped as unused.
+// A single instruction can contribute to more than one count (e.g. a
+// BINARY_OP whose operands both get propagated in and then the whole
+// thing folds counts as two propagations and one folding).
+struct OptimizationStats {
+    int originalInstructionCount = 0;
+    int optimizedInstructionCount = 0;
+    int instructionsRemoved = 0;
+
+    int constantFoldingCount = 0;
+    int constantPropagationCount = 0;
+    int algebraicSimplificationCount = 0;
+    int deadTemporaryEliminationCount = 0;
+};
+
 class Optimizer {
 public:
     IRProgram optimize(const IRProgram& input);
+
+    // Statistics describing what the most recent optimize() call did.
+    OptimizationStats getStats() const;
 
 private:
     using ConstantMap = std::unordered_map<std::string, IROperand>;
@@ -39,7 +76,8 @@ private:
 
     // Returns the operand's known constant value if it is a Name that
     // currently maps to one, otherwise returns the operand unchanged.
-    IROperand resolveOperand(const IROperand& operand, const ConstantMap& knownConstants) const;
+    // Counts a constant-propagation event whenever a substitution happens.
+    IROperand resolveOperand(const IROperand& operand, const ConstantMap& knownConstants);
 
     // Remembers "destination now holds this constant value", or forgets
     // any previous value for it if the new value is not a constant.
@@ -54,6 +92,8 @@ private:
     // when one applies, otherwise std::nullopt.
     std::optional<IROperand> simplifyIdentity(char operatorSymbol, const IROperand& left,
                                               const IROperand& right) const;
+
+    OptimizationStats stats;
 };
 
 #endif

@@ -1,4 +1,5 @@
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -48,6 +49,7 @@ int main(int argc, char** argv) {
         // IR generator.
         Optimizer optimizer;
         IRProgram optimizedIr = optimizer.optimize(ir);
+        OptimizationStats optimizationStats = optimizer.getStats();
 
         EnergyReport energyReport = analyzeEnergy(optimizedIr);
 
@@ -60,6 +62,25 @@ int main(int argc, char** argv) {
         cout << "========================================\n";
         cout << "           EcoLang Compiler\n";
         cout << "========================================\n\n";
+
+        cout << "[Optimization]\n";
+        cout << "-----------------\n";
+        cout << left << setw(27) << "Original IR Instructions"
+             << ": " << optimizationStats.originalInstructionCount << '\n';
+        cout << left << setw(27) << "Optimized IR Instructions"
+             << ": " << optimizationStats.optimizedInstructionCount << '\n';
+        cout << left << setw(27) << "Instructions Removed"
+             << ": " << optimizationStats.instructionsRemoved << '\n';
+        cout << '\n';
+        cout << left << setw(27) << "Constant Folding"
+             << ": " << optimizationStats.constantFoldingCount << '\n';
+        cout << left << setw(27) << "Constant Propagation"
+             << ": " << optimizationStats.constantPropagationCount << '\n';
+        cout << left << setw(27) << "Algebraic Simplification"
+             << ": " << optimizationStats.algebraicSimplificationCount << '\n';
+        cout << left << setw(27) << "Dead Temporary Elimination"
+             << ": " << optimizationStats.deadTemporaryEliminationCount << '\n';
+        cout << '\n';
 
         cout << "[Code Generation]\n";
         cout << "-----------------\n";

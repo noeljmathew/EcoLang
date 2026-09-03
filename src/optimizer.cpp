@@ -19,9 +19,20 @@ bool isIntConstantOf(const IROperand& operand, int value) {
 }  // namespace
 
 IRProgram Optimizer::optimize(const IRProgram& input) {
+    stats = OptimizationStats{};
+    stats.originalInstructionCount = static_cast<int>(input.size());
+
     IRProgram folded = foldAndPropagate(input);
     IRProgram cleaned = eliminateDeadTemporaries(folded);
+
+    stats.optimizedInstructionCount = static_cast<int>(cleaned.size());
+    stats.instructionsRemoved = stats.originalInstructionCount - stats.optimizedInstructionCount;
+
     return cleaned;
+}
+
+OptimizationStats Optimizer::getStats() const {
+    return stats;
 }
 
 IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
@@ -80,6 +91,7 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
                 store.line = instruction.line;
                 output.push_back(store);
                 recordIfConstant(store.destination, store.operandA, knownConstants);
+                stats.constantFoldingCount++;
                 continue;
             }
             // Division by zero: fall through and keep the instruction as
@@ -96,6 +108,7 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
             store.line = instruction.line;
             output.push_back(store);
             recordIfConstant(store.destination, store.operandA, knownConstants);
+            stats.algebraicSimplificationCount++;
             continue;
         }
 
@@ -128,6 +141,7 @@ IRProgram Optimizer::eliminateDeadTemporaries(const IRProgram& input) {
         bool isUnused = usedNames.find(instruction.destination) == usedNames.end();
 
         if (hasDestination && isTemp && isUnused) {
+            stats.deadTemporaryEliminationCount++;
             continue;  // dead compiler-generated temporary - drop it
         }
 
@@ -137,8 +151,7 @@ IRProgram Optimizer::eliminateDeadTemporaries(const IRProgram& input) {
     return output;
 }
 
-IROperand Optimizer::resolveOperand(const IROperand& operand,
-                                     const ConstantMap& knownConstants) const {
+IROperand Optimizer::resolveOperand(const IROperand& operand, const ConstantMap& knownConstants) {
     if (operand.kind != IROperandKind::Name) {
         return operand;
     }
@@ -148,6 +161,7 @@ IROperand Optimizer::resolveOperand(const IROperand& operand,
         return operand;
     }
 
+    stats.constantPropagationCount++;
     return it->second;
 }
 

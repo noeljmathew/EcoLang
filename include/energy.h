@@ -46,6 +46,15 @@ struct EnergyReport {
     // asymptotic analysis of arbitrary programs.
     std::string timeComplexity;
     EnergyBreakdown breakdown;
+
+    // Energy breakdown: each category's count (above) multiplied by its
+    // cost from the cost model above. totalEnergyUnits is just the sum of
+    // these five - there is no separate/second way total energy is computed.
+    long long assignmentEnergy = 0;
+    long long arithmeticEnergy = 0;
+    long long comparisonEnergy = 0;
+    long long loopEnergy = 0;
+    long long printEnergy = 0;
 };
 
 // Estimates the energy cost of the given IR with a single linear scan.

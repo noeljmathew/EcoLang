@@ -1,20 +1,45 @@
+let a = 10 + 20
+let b = 5 * 4
+let c = a + b
+let d = c + 0
+let e = d * 1
+let f = e - 0
+let g = f * 0
+let h = 100 / 5
+let i = h + 0
+let j = i * 1
 
-// TEST 1: Arithmetic and operator precedence
-let x = 2 + 3 * 4
-print x
-
-/*
-// TEST 2: Nested repeat loop
-repeat 2
-    repeat 3
-        print "Hi"
-    end
-end
-*/
-/*
-// TEST 3: Error detection - missing end
+print a
+print b
+print c
+print d
+print e
+print f
+print g
+print h
+print i
+print j
 
 repeat 3
-    print "Hello"
+    let x = 2 + 3 * 4
+    print x
+    print x + 0
+    print x * 1
+    repeat 4
+        print 10 + 20
+        print x + 0
+        print x * 1
+    end
+end
 
-*/
+repeat 2
+    let p = 50 + 50
+    let q = p * 2
+    print q
+    print q + 0
+    repeat 3
+        print p
+        print q
+        print 5 * 5
+    end
+end

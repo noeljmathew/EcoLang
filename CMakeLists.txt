@@ -17,4 +17,4 @@ add_executable(ecolang
 )
 
 target_include_directories(ecolang PRIVATE include)
-target_compile_options(ecolang PRIVATE -Wall -Wextra)
+target_compile_options(ecolang PRIVATE -Wall -Wextra -pedantic)

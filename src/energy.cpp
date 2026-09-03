@@ -1,5 +1,6 @@
 #include "energy.h"
 
+#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -64,6 +65,11 @@ EnergyReport analyzeEnergy(const IRProgram& program) {
                 break;
 
             case IROpcode::LOOP_END:
+                if (multiplierStack.empty()) {
+                    throw std::runtime_error("Energy analysis error on line " +
+                                             std::to_string(instruction.line) +
+                                             ": unmatched LOOP_END (no matching LOOP_START).");
+                }
                 multiplier = multiplierStack.back();
                 multiplierStack.pop_back();
                 nestingDepth--;
@@ -71,16 +77,20 @@ EnergyReport analyzeEnergy(const IRProgram& program) {
         }
     }
 
-    long long loopOverheadUnits = breakdown.loopIterationCount * kLoopOverheadUnitsPerIteration;
-
     report.totalOperations = breakdown.assignmentCount + breakdown.arithmeticCount +
                               breakdown.comparisonCount + breakdown.loopIterationCount +
                               breakdown.printCount;
 
-    report.totalEnergyUnits = breakdown.assignmentCount * kAssignmentCost +
-                               breakdown.arithmeticCount * kArithmeticCost +
-                               breakdown.comparisonCount * kComparisonCost + loopOverheadUnits +
-                               breakdown.printCount * kPrintCost;
+    // Energy breakdown: count x cost per category. totalEnergyUnits is
+    // simply their sum, so there is one single source of truth for it.
+    report.assignmentEnergy = breakdown.assignmentCount * kAssignmentCost;
+    report.arithmeticEnergy = breakdown.arithmeticCount * kArithmeticCost;
+    report.comparisonEnergy = breakdown.comparisonCount * kComparisonCost;
+    report.loopEnergy = breakdown.loopIterationCount * kLoopOverheadUnitsPerIteration;
+    report.printEnergy = breakdown.printCount * kPrintCost;
+
+    report.totalEnergyUnits = report.assignmentEnergy + report.arithmeticEnergy +
+                               report.comparisonEnergy + report.loopEnergy + report.printEnergy;
 
     report.estimatedJoules = static_cast<double>(report.totalEnergyUnits) * kJoulesPerEnergyUnit;
     report.timeComplexity = timeComplexityFor(maxNestingDepth);

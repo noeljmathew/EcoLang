@@ -13,6 +13,12 @@ std::string CodeGenerator::generate(const IRProgram& program) {
     return output.str();
 }
 
+// IR opcode -> pseudo-assembly line:
+//   STORE      -> MOV  destination, value
+//   BINARY_OP  -> ADD/SUB/MUL/DIV destination, left, right (see mnemonicFor)
+//   PRINT      -> PRINT value
+//   LOOP_START -> LOOP_START iterationCount
+//   LOOP_END   -> LOOP_END
 std::string CodeGenerator::generateInstruction(const IRInstruction& instruction) const {
     switch (instruction.opcode) {
         case IROpcode::STORE:

@@ -180,6 +180,19 @@ closes (the loop might run zero or many times), so it never incorrectly
 leaks to code after the loop. Folding pure arithmetic inside a loop body is
 still done freely, since that's safe regardless of iteration count.
 
+`Optimizer::getStats()` returns an `OptimizationStats` describing exactly
+what the most recent `optimize()` call did (instruction counts before/after,
+plus how many times each of the four techniques above actually fired) - the
+compiler prints this as the `[Optimization]` section of its normal output.
+These counts are computed directly from the real transformations above, not
+estimated. One subtlety: if a `BINARY_OP`'s *other* operand also happens to
+already be a known constant (e.g. `c + 0` where `c` was itself propagated
+in as a literal), that instruction is fully folded rather than identity-
+simplified, since the "both operands are constants" check runs first - so
+it's counted under Constant Folding, not Algebraic Simplification. The
+identity counter only increments when one side is a known identity
+constant (`0` or `1`) and the *other* side genuinely isn't foldable.
+
 ## Energy cost model
 
 [include/energy.h](include/energy.h) / [src/energy.cpp](src/energy.cpp)
@@ -199,10 +212,14 @@ actually execute. Cost table:
 
 The result (`EnergyReport`) contains a full breakdown (assignment /
 arithmetic / comparison / loop-iteration / print counts), `totalOperations`
-(unweighted), `totalEnergyUnits` (weighted by the table above),
-`estimatedJoules`, and a `timeComplexity` string. See *Assumptions* for
-the two intentional deviations from the requirements document baked into
-this model, and why.
+(unweighted), and an energy breakdown - `assignmentEnergy`, `arithmeticEnergy`,
+`comparisonEnergy`, `loopEnergy`, `printEnergy` - which is each count above
+multiplied by its cost from the table. `totalEnergyUnits` is simply the sum
+of those five (never computed a second, different way), and `estimatedJoules`
+is `totalEnergyUnits * kJoulesPerEnergyUnit`. All of this is computed once,
+in `analyzeEnergy` itself; `report.cpp` only formats the numbers it's given.
+See *Assumptions* for the two intentional deviations from the requirements
+document baked into this model, and why.
 
 ## Code generation
 
@@ -299,6 +316,17 @@ end
            EcoLang Compiler
 ========================================
 
+[Optimization]
+-----------------
+Original IR Instructions   : 9
+Optimized IR Instructions  : 7
+Instructions Removed       : 2
+
+Constant Folding           : 2
+Constant Propagation       : 3
+Algebraic Simplification   : 0
+Dead Temporary Elimination : 2
+
 [Code Generation]
 -----------------
 MOV x, 14
@@ -324,8 +352,14 @@ Loop Iterations     : 210
 Print Statements    : 201
 Total Operations    : 412
 
-Energy Analysis
----------------
+Energy Breakdown
+----------------
+Assignment Energy   : 1
+Arithmetic Energy   : 0
+Comparison Energy   : 0
+Loop Energy         : 210
+Print Energy        : 1005
+
 Total Energy Units  : 1216
 Estimated Energy    : 0.0001216 J
 

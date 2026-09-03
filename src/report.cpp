@@ -30,8 +30,15 @@ std::string ReportGenerator::generate(const EnergyReport& report) {
     writeRow(out, "Total Operations", std::to_string(report.totalOperations));
     out << '\n';
 
-    out << "Energy Analysis\n";
-    out << "---------------\n";
+    out << "Energy Breakdown\n";
+    out << "----------------\n";
+    writeRow(out, "Assignment Energy", std::to_string(report.assignmentEnergy));
+    writeRow(out, "Arithmetic Energy", std::to_string(report.arithmeticEnergy));
+    writeRow(out, "Comparison Energy", std::to_string(report.comparisonEnergy));
+    writeRow(out, "Loop Energy", std::to_string(report.loopEnergy));
+    writeRow(out, "Print Energy", std::to_string(report.printEnergy));
+    out << '\n';
+
     writeRow(out, "Total Energy Units", std::to_string(report.totalEnergyUnits));
 
     // Fixed to 7 decimal places so the Joules figure - which comes from
