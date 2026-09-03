@@ -1,6 +1,21 @@
-// Demonstrates nested repeat loops.
+// Demonstrates three levels of nested loops.
+// The energy analyzer should report Time Complexity : O(n^3).
+
+let outerValue = 2 + 1
+let middleValue = outerValue * 2
+let innerValue = 100 / 5
+
+print outerValue
+print middleValue
+print innerValue
+
 repeat 3
+    print "Outer"
     repeat 2
-        print "Hi"
+        print "Middle"
+        repeat 4
+            print "Inner"
+            print innerValue
+        end
     end
 end

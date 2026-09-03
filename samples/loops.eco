@@ -1,4 +1,19 @@
-// Demonstrates a simple repeat loop.
+// Demonstrates loops and how nesting multiplies energy cost.
+
+let base = 4 + 6
+let step = base * 2
+let label = "Cycle"
+
+print base
+print step
+
 repeat 5
-    print "Hello"
+    let stepPlusZero = step + 0
+    print label
+    print stepPlusZero
+    repeat 3
+        let stepTimesOne = step * 1
+        print stepTimesOne
+        print "Hi"
+    end
 end

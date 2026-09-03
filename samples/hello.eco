@@ -1,14 +1,32 @@
-let a = 10 + 20
-let b = 5 * 4
-let c = a + b
-let d = c + 0
-let e = d * 1
-let f = e - 0
-let g = f * 0
-let h = 100 / 5
-let i = h + 0
-let j = i * 1
+// EcoLang demonstration program.
+// Shows variable declarations, arithmetic, constant folding,
+// constant propagation, algebraic simplification, and loops.
 
+// --- Constant folding ---
+let sum = 10 + 20
+let product = 5 * 4
+let precedence = 2 + 3 * 4
+let quotient = 100 / 5
+
+// --- Chained expressions (values reused across expressions) ---
+let total = sum + product
+let average = total / 2
+
+// --- Algebraic simplification ---
+let a = total + 0
+let b = 0 + total
+let c = total - 0
+let d = total * 1
+let e = 1 * total
+let f = total * 0
+let g = 0 * total
+
+print sum
+print product
+print precedence
+print quotient
+print total
+print average
 print a
 print b
 print c
@@ -16,30 +34,16 @@ print d
 print e
 print f
 print g
-print h
-print i
-print j
 
+// --- A repeat loop ---
 repeat 3
-    let x = 2 + 3 * 4
-    print x
-    print x + 0
-    print x * 1
-    repeat 4
-        print 10 + 20
-        print x + 0
-        print x * 1
-    end
+    print "Looping"
+    print total
 end
 
+// --- Nested repeat loops (2 x 3 = 6 total inner iterations) ---
 repeat 2
-    let p = 50 + 50
-    let q = p * 2
-    print q
-    print q + 0
     repeat 3
-        print p
-        print q
-        print 5 * 5
+        print "Nested"
     end
 end
