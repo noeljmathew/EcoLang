@@ -18,7 +18,7 @@ using namespace std;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <path-to-.eco-file>\n";
+        cerr << "Usage: " << argv[0] << " <path-to-.c-file>\n";
         return 1;
     }
 
