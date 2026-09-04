@@ -7,8 +7,10 @@
 
 #include "ast.h"
 
-// EcoLang currently only ever needs these two value types.
-enum class ValueType { Int, String };
+// Phase 1 has exactly one value type. Kept as an enum (rather than
+// dropping type-tracking entirely) since it is a natural extension
+// point for later phases.
+enum class ValueType { Int };
 
 struct Symbol {
     std::string name;
@@ -16,9 +18,9 @@ struct Symbol {
     int declaredLine;
 };
 
-// One flat table for the whole program - EcoLang has no block scoping,
-// so a variable declared anywhere (including inside a repeat block)
-// stays visible for the rest of the program.
+// One flat table for the whole program. Phase 1 explicitly uses a single
+// function/main scope - a `{ }` block does not open a new scope, it is
+// only a grouping construct for statements.
 class SymbolTable {
 public:
     // Returns false if the name is already declared (caller reports the error).
@@ -37,16 +39,14 @@ public:
     void analyze(const Program& program);
 
 private:
+    void analyzeBlock(const BlockStatement* block);
     void analyzeStatement(const Statement* statement);
-    void analyzeLet(const LetStatement* letStatement);
-    void analyzePrint(const PrintStatement* printStatement);
-    void analyzeRepeat(const RepeatStatement* repeatStatement);
+    void analyzeDeclaration(const VariableDeclaration* declaration);
+    void analyzeAssignment(const AssignmentStatement* assignment);
+    void analyzePrintf(const PrintfStatement* printfStatement);
+    void analyzeReturn(const ReturnStatement* returnStatement);
 
     ValueType typeOfExpression(const Expression* expression);
-
-    // True for expressions whose value is known at compile time
-    // (number literals and arithmetic built only from them).
-    bool isConstantExpression(const Expression* expression);
 
     std::runtime_error error(int line, const std::string& message) const;
 

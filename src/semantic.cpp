@@ -21,57 +21,66 @@ const Symbol* SymbolTable::lookup(const std::string& name) const {
 }
 
 void SemanticAnalyzer::analyze(const Program& program) {
-    for (const std::unique_ptr<Statement>& statement : program.statements) {
+    analyzeBlock(program.mainFunction->body.get());
+}
+
+void SemanticAnalyzer::analyzeBlock(const BlockStatement* block) {
+    for (const std::unique_ptr<Statement>& statement : block->statements) {
         analyzeStatement(statement.get());
     }
 }
 
 void SemanticAnalyzer::analyzeStatement(const Statement* statement) {
-    if (const LetStatement* let = dynamic_cast<const LetStatement*>(statement)) {
-        analyzeLet(let);
-    } else if (const PrintStatement* print = dynamic_cast<const PrintStatement*>(statement)) {
-        analyzePrint(print);
-    } else if (const RepeatStatement* repeat = dynamic_cast<const RepeatStatement*>(statement)) {
-        analyzeRepeat(repeat);
+    if (const VariableDeclaration* declaration = dynamic_cast<const VariableDeclaration*>(statement)) {
+        analyzeDeclaration(declaration);
+    } else if (const AssignmentStatement* assignment =
+                   dynamic_cast<const AssignmentStatement*>(statement)) {
+        analyzeAssignment(assignment);
+    } else if (const PrintfStatement* printfStatement =
+                   dynamic_cast<const PrintfStatement*>(statement)) {
+        analyzePrintf(printfStatement);
+    } else if (const ReturnStatement* returnStatement =
+                   dynamic_cast<const ReturnStatement*>(statement)) {
+        analyzeReturn(returnStatement);
+    } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
+        analyzeBlock(block);
     }
 }
 
-void SemanticAnalyzer::analyzeLet(const LetStatement* letStatement) {
-    ValueType type = typeOfExpression(letStatement->value.get());
+void SemanticAnalyzer::analyzeDeclaration(const VariableDeclaration* declaration) {
+    if (declaration->initializer != nullptr) {
+        typeOfExpression(declaration->initializer.get());
+    }
 
-    if (!symbols.declare(letStatement->name, type, letStatement->line)) {
-        throw error(letStatement->line,
-                    "variable '" + letStatement->name + "' is already declared.");
+    if (!symbols.declare(declaration->name, ValueType::Int, declaration->line)) {
+        throw error(declaration->line,
+                    "variable '" + declaration->name + "' is already declared.");
     }
 }
 
-void SemanticAnalyzer::analyzePrint(const PrintStatement* printStatement) {
-    typeOfExpression(printStatement->expression.get());
+void SemanticAnalyzer::analyzeAssignment(const AssignmentStatement* assignment) {
+    typeOfExpression(assignment->value.get());
+
+    if (symbols.lookup(assignment->name) == nullptr) {
+        throw error(assignment->line, "variable '" + assignment->name + "' is not declared.");
+    }
 }
 
-void SemanticAnalyzer::analyzeRepeat(const RepeatStatement* repeatStatement) {
-    ValueType countType = typeOfExpression(repeatStatement->count.get());
-
-    if (countType != ValueType::Int) {
-        throw error(repeatStatement->line, "repeat count must be an integer.");
+void SemanticAnalyzer::analyzePrintf(const PrintfStatement* printfStatement) {
+    for (const std::unique_ptr<Expression>& argument : printfStatement->arguments) {
+        typeOfExpression(argument.get());
     }
+}
 
-    if (!isConstantExpression(repeatStatement->count.get())) {
-        throw error(repeatStatement->line, "repeat count must be a constant expression.");
-    }
-
-    for (const std::unique_ptr<Statement>& statement : repeatStatement->body) {
-        analyzeStatement(statement.get());
+void SemanticAnalyzer::analyzeReturn(const ReturnStatement* returnStatement) {
+    if (returnStatement->value != nullptr) {
+        typeOfExpression(returnStatement->value.get());
     }
 }
 
 ValueType SemanticAnalyzer::typeOfExpression(const Expression* expression) {
     if (dynamic_cast<const NumberExpression*>(expression) != nullptr) {
         return ValueType::Int;
-    }
-
-    if (dynamic_cast<const StringExpression*>(expression) != nullptr) {
-        return ValueType::String;
     }
 
     if (const VariableExpression* variable = dynamic_cast<const VariableExpression*>(expression)) {
@@ -91,31 +100,16 @@ ValueType SemanticAnalyzer::typeOfExpression(const Expression* expression) {
             return ValueType::Int;
         }
 
-        if (leftType == ValueType::String && rightType == ValueType::String &&
-            binary->operatorSymbol == '+') {
-            return ValueType::String;
-        }
-
+        // Unreachable while Int is the only ValueType (kept for when a
+        // second expression type is introduced in a later phase).
         throw error(binary->line, std::string("incompatible types for operator '") +
                                        binary->operatorSymbol + "'.");
     }
 
-    // Every concrete Expression subtype is handled above; this only exists
-    // so the function has a well-defined return on every path.
+    // Every concrete Expression subtype reachable from the Phase 1 grammar
+    // is handled above; this only exists so the function has a
+    // well-defined return on every path.
     throw std::runtime_error("Internal error: unrecognized expression node.");
-}
-
-bool SemanticAnalyzer::isConstantExpression(const Expression* expression) {
-    if (dynamic_cast<const NumberExpression*>(expression) != nullptr) {
-        return true;
-    }
-
-    if (const BinaryExpression* binary = dynamic_cast<const BinaryExpression*>(expression)) {
-        return isConstantExpression(binary->left.get()) &&
-               isConstantExpression(binary->right.get());
-    }
-
-    return false;
 }
 
 std::runtime_error SemanticAnalyzer::error(int line, const std::string& message) const {

@@ -16,10 +16,14 @@ public:
     std::unique_ptr<Program> parse();
 
 private:
+    std::unique_ptr<MainFunction> mainFunction();
+    std::unique_ptr<BlockStatement> block();
+
     std::unique_ptr<Statement> statement();
-    std::unique_ptr<Statement> letStatement();
-    std::unique_ptr<Statement> printStatement();
-    std::unique_ptr<Statement> repeatStatement();
+    std::unique_ptr<Statement> declaration();
+    std::unique_ptr<Statement> assignment();
+    std::unique_ptr<Statement> printfStatement();
+    std::unique_ptr<Statement> returnStatement();
 
     std::unique_ptr<Expression> expression();
     std::unique_ptr<Expression> term();

@@ -64,7 +64,11 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
         }
 
         if (instruction.opcode == IROpcode::PRINT) {
-            instruction.operandA = resolveOperand(instruction.operandA, knownConstants);
+            // printf's arguments live in operandList, not operandA/operandB -
+            // resolve each one against known constants in place.
+            for (IROperand& argument : instruction.operandList) {
+                argument = resolveOperand(argument, knownConstants);
+            }
             output.push_back(instruction);
             continue;
         }
@@ -73,6 +77,14 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
             instruction.operandA = resolveOperand(instruction.operandA, knownConstants);
             output.push_back(instruction);
             recordIfConstant(instruction.destination, instruction.operandA, knownConstants);
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::RETURN) {
+            if (instruction.hasOperand) {
+                instruction.operandA = resolveOperand(instruction.operandA, knownConstants);
+            }
+            output.push_back(instruction);
             continue;
         }
 
@@ -130,6 +142,11 @@ IRProgram Optimizer::eliminateDeadTemporaries(const IRProgram& input) {
         }
         if (instruction.operandB.kind == IROperandKind::Name) {
             usedNames.insert(instruction.operandB.text);
+        }
+        for (const IROperand& argument : instruction.operandList) {
+            if (argument.kind == IROperandKind::Name) {
+                usedNames.insert(argument.text);
+            }
         }
     }
 

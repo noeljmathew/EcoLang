@@ -31,14 +31,25 @@ std::string CodeGenerator::generateInstruction(const IRInstruction& instruction)
                    operandToText(instruction.operandB);
         }
 
-        case IROpcode::PRINT:
-            return "PRINT " + operandToText(instruction.operandA);
+        case IROpcode::PRINT: {
+            std::string line = "PRINT \"" + instruction.formatString + "\"";
+            for (const IROperand& argument : instruction.operandList) {
+                line += ", " + operandToText(argument);
+            }
+            return line;
+        }
 
         case IROpcode::LOOP_START:
             return "LOOP_START " + operandToText(instruction.operandA);
 
         case IROpcode::LOOP_END:
             return "LOOP_END";
+
+        case IROpcode::RETURN:
+            if (instruction.hasOperand) {
+                return "RETURN " + operandToText(instruction.operandA);
+            }
+            return "RETURN";
 
         default:
             throw std::runtime_error("Code generation error on line " +

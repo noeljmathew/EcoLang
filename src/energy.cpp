@@ -46,7 +46,17 @@ EnergyReport analyzeEnergy(const IRProgram& program) {
                 break;
 
             case IROpcode::PRINT:
+                // One PRINT instruction is one print operation regardless of
+                // how many printf arguments it carries (operandList size is
+                // not part of the cost model).
                 breakdown.printCount += multiplier;
+                break;
+
+            case IROpcode::RETURN:
+                // A control-flow exit, not a computation - any energy spent
+                // producing its value was already counted by the STORE/
+                // BINARY_OP instructions that computed it. No separate cost,
+                // and report.cpp has no row to show one even if there were.
                 break;
 
             case IROpcode::LOOP_START:

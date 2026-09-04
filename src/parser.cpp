@@ -10,57 +10,107 @@ Parser::Parser(const std::vector<Token>& tokens)
 
 std::unique_ptr<Program> Parser::parse() {
     std::unique_ptr<Program> program = std::make_unique<Program>();
-
-    while (!isAtEnd()) {
-        program->statements.push_back(statement());
-    }
-
+    program->mainFunction = mainFunction();
+    consume(TokenType::END_OF_FILE, "expected end of file after the main function.");
     return program;
 }
 
+std::unique_ptr<MainFunction> Parser::mainFunction() {
+    int line = peek().line;
+    consume(TokenType::INT, "expected 'int' to begin the main function.");
+    consume(TokenType::MAIN, "expected 'main' after 'int'.");
+    consume(TokenType::LEFT_PAREN, "expected '(' after 'main'.");
+    consume(TokenType::RIGHT_PAREN, "expected ')' after '('.");
+
+    return std::make_unique<MainFunction>(block(), line);
+}
+
+std::unique_ptr<BlockStatement> Parser::block() {
+    int line = peek().line;
+    consume(TokenType::LEFT_BRACE, "expected '{' to begin a block.");
+
+    std::unique_ptr<BlockStatement> blockStatement = std::make_unique<BlockStatement>(line);
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        blockStatement->statements.push_back(statement());
+    }
+
+    consume(TokenType::RIGHT_BRACE, "expected '}' to close a block.");
+    return blockStatement;
+}
+
 std::unique_ptr<Statement> Parser::statement() {
-    if (match(TokenType::LET)) {
-        return letStatement();
+    if (match(TokenType::INT)) {
+        return declaration();
     }
-    if (match(TokenType::PRINT)) {
-        return printStatement();
+    if (check(TokenType::IDENTIFIER)) {
+        return assignment();
     }
-    if (match(TokenType::REPEAT)) {
-        return repeatStatement();
+    if (match(TokenType::PRINTF)) {
+        return printfStatement();
+    }
+    if (match(TokenType::RETURN)) {
+        return returnStatement();
+    }
+    if (check(TokenType::LEFT_BRACE)) {
+        return block();
     }
 
     throw error(peek(), "unexpected token '" + peek().lexeme + "'.");
 }
 
-std::unique_ptr<Statement> Parser::letStatement() {
+std::unique_ptr<Statement> Parser::declaration() {
     int line = previous().line;
-    const Token& name = consume(TokenType::IDENTIFIER,
-                                "expected an identifier after 'let'.");
+    const Token& name = consume(TokenType::IDENTIFIER, "expected an identifier after 'int'.");
+
+    std::unique_ptr<Expression> initializer;
+    if (match(TokenType::EQUAL)) {
+        initializer = expression();
+    }
+
+    consume(TokenType::SEMICOLON, "expected ';' after declaration.");
+    return std::make_unique<VariableDeclaration>(name.lexeme, std::move(initializer), line);
+}
+
+std::unique_ptr<Statement> Parser::assignment() {
+    const Token& name = consume(TokenType::IDENTIFIER, "expected an identifier.");
+    int line = name.line;
     consume(TokenType::EQUAL, "expected '=' after variable name.");
+    std::unique_ptr<Expression> value = expression();
+    consume(TokenType::SEMICOLON, "expected ';' after assignment.");
 
-    return std::make_unique<LetStatement>(name.lexeme, expression(), line);
+    return std::make_unique<AssignmentStatement>(name.lexeme, std::move(value), line);
 }
 
-std::unique_ptr<Statement> Parser::printStatement() {
+std::unique_ptr<Statement> Parser::printfStatement() {
     int line = previous().line;
-    return std::make_unique<PrintStatement>(expression(), line);
+    consume(TokenType::LEFT_PAREN, "expected '(' after 'printf'.");
+
+    const Token& formatToken = consume(TokenType::STRING, "expected a format string after '('.");
+    const std::string& text = formatToken.lexeme;
+    std::unique_ptr<StringExpression> format =
+        std::make_unique<StringExpression>(text.substr(1, text.length() - 2), formatToken.line);
+
+    std::vector<std::unique_ptr<Expression>> arguments;
+    while (match(TokenType::COMMA)) {
+        arguments.push_back(expression());
+    }
+
+    consume(TokenType::RIGHT_PAREN, "expected ')' after printf arguments.");
+    consume(TokenType::SEMICOLON, "expected ';' after printf statement.");
+
+    return std::make_unique<PrintfStatement>(std::move(format), std::move(arguments), line);
 }
 
-std::unique_ptr<Statement> Parser::repeatStatement() {
+std::unique_ptr<Statement> Parser::returnStatement() {
     int line = previous().line;
-    std::unique_ptr<RepeatStatement> repeat =
-        std::make_unique<RepeatStatement>(expression(), line);
 
-    while (!check(TokenType::END) && !isAtEnd()) {
-        repeat->body.push_back(statement());
+    std::unique_ptr<Expression> value;
+    if (!check(TokenType::SEMICOLON)) {
+        value = expression();
     }
 
-    if (isAtEnd()) {
-        throw error(peek(), "expected 'end' to close repeat statement.");
-    }
-
-    consume(TokenType::END, "expected 'end' to close repeat statement.");
-    return repeat;
+    consume(TokenType::SEMICOLON, "expected ';' after return statement.");
+    return std::make_unique<ReturnStatement>(std::move(value), line);
 }
 
 std::unique_ptr<Expression> Parser::expression() {
@@ -98,11 +148,6 @@ std::unique_ptr<Expression> Parser::factor() {
         } catch (const std::exception&) {
             throw error(previous(), "invalid integer number.");
         }
-    }
-
-    if (match(TokenType::STRING)) {
-        const std::string& text = previous().lexeme;
-        return std::make_unique<StringExpression>(text.substr(1, text.length() - 2), previous().line);
     }
 
     if (match(TokenType::IDENTIFIER)) {

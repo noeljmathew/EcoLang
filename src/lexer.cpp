@@ -77,6 +77,10 @@ void Lexer::scanToken() {
         case '=': addToken(TokenType::EQUAL); break;
         case '(': addToken(TokenType::LEFT_PAREN); break;
         case ')': addToken(TokenType::RIGHT_PAREN); break;
+        case '{': addToken(TokenType::LEFT_BRACE); break;
+        case '}': addToken(TokenType::RIGHT_BRACE); break;
+        case ',': addToken(TokenType::COMMA); break;
+        case ';': addToken(TokenType::SEMICOLON); break;
         case '"': string(); break;
         default:
             if (isalpha(static_cast<unsigned char>(character)) || character == '_') {
@@ -97,14 +101,14 @@ void Lexer::identifier() {
 
     std::string text = source.substr(start, current - start);
 
-    if (text == "let") {
-        addToken(TokenType::LET);
-    } else if (text == "print") {
-        addToken(TokenType::PRINT);
-    } else if (text == "repeat") {
-        addToken(TokenType::REPEAT);
-    } else if (text == "end") {
-        addToken(TokenType::END);
+    if (text == "int") {
+        addToken(TokenType::INT);
+    } else if (text == "main") {
+        addToken(TokenType::MAIN);
+    } else if (text == "printf") {
+        addToken(TokenType::PRINTF);
+    } else if (text == "return") {
+        addToken(TokenType::RETURN);
     } else {
         addToken(TokenType::IDENTIFIER);
     }

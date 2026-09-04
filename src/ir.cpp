@@ -5,25 +5,50 @@
 
 IRProgram IRGenerator::generate(const Program& program) {
     IRProgram output;
-
-    for (const std::unique_ptr<Statement>& statement : program.statements) {
-        generateStatement(statement.get(), output);
-    }
-
+    generateBlock(program.mainFunction->body.get(), output);
     return output;
 }
 
 void IRGenerator::generateStatement(const Statement* statement, IRProgram& output) {
-    if (const LetStatement* let = dynamic_cast<const LetStatement*>(statement)) {
-        generateLet(let, output);
-    } else if (const PrintStatement* print = dynamic_cast<const PrintStatement*>(statement)) {
-        generatePrint(print, output);
-    } else if (const RepeatStatement* repeat = dynamic_cast<const RepeatStatement*>(statement)) {
-        generateRepeat(repeat, output);
+    if (const VariableDeclaration* declaration =
+            dynamic_cast<const VariableDeclaration*>(statement)) {
+        generateDeclaration(declaration, output);
+    } else if (const AssignmentStatement* assignment =
+                   dynamic_cast<const AssignmentStatement*>(statement)) {
+        generateAssignment(assignment, output);
+    } else if (const PrintfStatement* printfStatement =
+                   dynamic_cast<const PrintfStatement*>(statement)) {
+        generatePrintf(printfStatement, output);
+    } else if (const ReturnStatement* returnStatement =
+                   dynamic_cast<const ReturnStatement*>(statement)) {
+        generateReturn(returnStatement, output);
+    } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
+        generateBlock(block, output);
     }
 }
 
-void IRGenerator::generateLet(const LetStatement* statement, IRProgram& output) {
+void IRGenerator::generateBlock(const BlockStatement* statement, IRProgram& output) {
+    for (const std::unique_ptr<Statement>& inner : statement->statements) {
+        generateStatement(inner.get(), output);
+    }
+}
+
+void IRGenerator::generateDeclaration(const VariableDeclaration* statement, IRProgram& output) {
+    if (statement->initializer == nullptr) {
+        return;  // declaration only - nothing to compute yet
+    }
+
+    IROperand value = generateExpression(statement->initializer.get(), output);
+
+    IRInstruction instruction{};
+    instruction.opcode = IROpcode::STORE;
+    instruction.destination = statement->name;
+    instruction.operandA = value;
+    instruction.line = statement->line;
+    output.push_back(instruction);
+}
+
+void IRGenerator::generateAssignment(const AssignmentStatement* statement, IRProgram& output) {
     IROperand value = generateExpression(statement->value.get(), output);
 
     IRInstruction instruction{};
@@ -34,36 +59,31 @@ void IRGenerator::generateLet(const LetStatement* statement, IRProgram& output) 
     output.push_back(instruction);
 }
 
-void IRGenerator::generatePrint(const PrintStatement* statement, IRProgram& output) {
-    IROperand value = generateExpression(statement->expression.get(), output);
+void IRGenerator::generatePrintf(const PrintfStatement* statement, IRProgram& output) {
+    std::vector<IROperand> arguments;
+    for (const std::unique_ptr<Expression>& argument : statement->arguments) {
+        arguments.push_back(generateExpression(argument.get(), output));
+    }
 
     IRInstruction instruction{};
     instruction.opcode = IROpcode::PRINT;
-    instruction.operandA = value;
+    instruction.formatString = statement->format->value;
+    instruction.operandList = std::move(arguments);
     instruction.line = statement->line;
     output.push_back(instruction);
 }
 
-void IRGenerator::generateRepeat(const RepeatStatement* statement, IRProgram& output) {
-    // The semantic analyzer already guarantees this is a constant integer
-    // expression, so generating it here can never emit anything other than
-    // an IntConstant operand (no BINARY_OP is ever needed for the count).
-    IROperand count = generateExpression(statement->count.get(), output);
+void IRGenerator::generateReturn(const ReturnStatement* statement, IRProgram& output) {
+    IRInstruction instruction{};
+    instruction.opcode = IROpcode::RETURN;
+    instruction.line = statement->line;
 
-    IRInstruction loopStart{};
-    loopStart.opcode = IROpcode::LOOP_START;
-    loopStart.operandA = count;
-    loopStart.line = statement->line;
-    output.push_back(loopStart);
-
-    for (const std::unique_ptr<Statement>& bodyStatement : statement->body) {
-        generateStatement(bodyStatement.get(), output);
+    if (statement->value != nullptr) {
+        instruction.operandA = generateExpression(statement->value.get(), output);
+        instruction.hasOperand = true;
     }
 
-    IRInstruction loopEnd{};
-    loopEnd.opcode = IROpcode::LOOP_END;
-    loopEnd.line = statement->line;
-    output.push_back(loopEnd);
+    output.push_back(instruction);
 }
 
 IROperand IRGenerator::generateExpression(const Expression* expression, IRProgram& output) {
@@ -71,13 +91,6 @@ IROperand IRGenerator::generateExpression(const Expression* expression, IRProgra
         IROperand operand{};
         operand.kind = IROperandKind::IntConstant;
         operand.intValue = number->value;
-        return operand;
-    }
-
-    if (const StringExpression* text = dynamic_cast<const StringExpression*>(expression)) {
-        IROperand operand{};
-        operand.kind = IROperandKind::StringConstant;
-        operand.text = text->value;
         return operand;
     }
 
@@ -109,8 +122,10 @@ IROperand IRGenerator::generateExpression(const Expression* expression, IRProgra
         return result;
     }
 
-    // Every concrete Expression subtype is handled above; this only exists
-    // so the function has a well-defined return on every path.
+    // Every concrete Expression subtype reachable here (NumberExpression,
+    // VariableExpression, BinaryExpression) is handled above -
+    // StringExpression never reaches this function, since printf's format
+    // string is read directly from the AST in generatePrintf instead.
     throw std::runtime_error("Internal error: unrecognized expression node.");
 }
 

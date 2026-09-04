@@ -4,10 +4,10 @@
 #include <string>
 
 enum class TokenType {
-    LET,
-    PRINT,
-    REPEAT,
-    END,
+    INT,
+    MAIN,
+    PRINTF,
+    RETURN,
     IDENTIFIER,
     NUMBER,
     STRING,
@@ -18,6 +18,10 @@ enum class TokenType {
     EQUAL,
     LEFT_PAREN,
     RIGHT_PAREN,
+    LEFT_BRACE,
+    RIGHT_BRACE,
+    COMMA,
+    SEMICOLON,
     END_OF_FILE,
     UNKNOWN
 };
