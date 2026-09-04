@@ -1,254 +1,60 @@
 # EcoLang
 
-EcoLang is a small, hand-written, energy-aware compiler built in C++17 as a
-Compiler Design course project. It compiles a tiny imperative language
-(`let`, `print`, `repeat ... end`) all the way from source text through
-lexing, parsing, semantic analysis, IR generation, optimization, and code
+EcoLang is a small, hand-written, energy-aware compiler for a **restricted
+subset of C**, built in C++17 as a Compiler Design course project. It is
+not a full C compiler - it supports `int`/`void` functions, parameters,
+declarations, assignment, arithmetic, `printf`, `return`, `if`/`else`,
+`while`, `for`, comparisons, and function calls (including recursion), and
+nothing beyond that. It compiles source text all the way through lexing,
+parsing, semantic analysis, IR generation, optimization, and pseudo-code
 generation, and finishes by estimating how much "energy" the compiled
 program costs to run.
 
-## Project objective
+## Project purpose
 
-The goal isn't to build a production language - it's to demonstrate every
-classic compiler stage end to end, on a language simple enough to reason
-about by hand, while adding one twist beyond a standard course compiler: an
-**energy cost model**. Every operation in the optimized program is given an
-estimated energy cost, so the compiler can report not just "does this
-program run correctly" but "roughly how expensive is it," and suggest that
-optimizing the program (constant folding, dead-code removal, ...) also
-reduces its estimated energy cost.
+The goal isn't to build a production language or a real C compiler - it's
+to demonstrate every classic compiler stage end to end, on a language
+simple enough to reason about by hand, while adding one twist beyond a
+standard course compiler: an **energy cost model**. Every operation in the
+optimized program is given an estimated energy cost, so the compiler can
+report not just "does this program run correctly" but "roughly how
+expensive is it," and show that optimizing a program (constant folding,
+dead-code removal, ...) also reduces its estimated energy cost.
 
-## Language features
+EcoLang started as an even smaller toy language (`let` / `print` /
+`repeat ... end`) and was migrated in three phases to the C-like subset
+described below - first the basic statement forms, then control flow and
+comparisons, then functions and recursion. The migration is complete; the
+language described here is the current, final one.
 
-EcoLang supports exactly this, no more:
+## Supported C subset
 
-- `let <identifier> = <expression>` - declare a variable and give it a value
-- `print <expression>` - print a value
-- `repeat <constant integer expression> ... end` - repeat a block a fixed
-  number of times, including nested `repeat` blocks
-- Two value types: **integers** and **strings**
-- Arithmetic operators `+ - * /` on integers
-- String concatenation with `+` (`"foo" + "bar"`)
-- Parentheses for grouping
+- `int x;` and `int x = expr;` - integer declarations, with or without an initializer
+- `x = expr;` - assignment to an already-declared variable
+- Arithmetic: `+ - * /`, with the usual precedence and parentheses for grouping
+- Comparisons: `== != < <= > >=` - exactly one comparison per condition (no `&&`/`||`)
+- `if (condition) { ... }` with an optional `else { ... }` (including `else if`)
+- `while (condition) { ... }`
+- `for (init; condition; update) { ... }` - `init` is a declaration or assignment, `update` is an assignment
+- `printf("format", arg1, arg2, ...);` - any number of comma-separated integer arguments
+- `return;` and `return expr;`
+- Function declarations: `int name(int a, int b) { ... }` or `void name(int a) { ... }` - only `int` and `void` return types, only `int` parameters
+- Function calls, as an expression (`x = add(a, b) + 1;`) or as a standalone statement (`printResult(x);`, discarding the result)
+- Recursion, including mutual recursion (two functions calling each other)
 - `//` line comments and `/* ... */` block comments
+- `{ }` blocks and `;` statement terminators
 
-There is no `if`, no boolean type, no functions, no arrays, no unary minus
-(so no negative number literals), and no way to reassign a variable after
-it has been declared. See **Assumptions and limitations** below.
+**Not supported** (deliberately, to keep the project scoped): arrays,
+pointers, structs, floats, booleans, strings as a variable type (a string
+can only ever appear as a `printf` format literal), `&&`/`||`, `break`/
+`continue`, unary minus, function prototypes/forward declarations, nested
+function definitions, and block-level scoping (see *Assumptions and
+limitations*).
 
-## Grammar
-
-```
-program    -> statement*
-statement  -> letStatement | printStatement | repeatStatement
-letStatement    -> "let" IDENTIFIER "=" expression
-printStatement  -> "print" expression
-repeatStatement -> "repeat" expression statement* "end"
-
-expression -> term (("+" | "-") term)*
-term       -> factor (("*" | "/") factor)*
-factor     -> NUMBER | STRING | IDENTIFIER | "(" expression ")"
-```
-
-Operator precedence is the usual `* /` before `+ -`, both left-associative;
-parentheses override precedence as normal. Statements are not separated by
-semicolons or required to be on their own line - the grammar is entirely
-token-driven.
-
-## Token types
-
-Defined in [include/token.h](include/token.h):
+## Compiler pipeline
 
 ```
-LET, PRINT, REPEAT, END,
-IDENTIFIER, NUMBER, STRING,
-PLUS, MINUS, STAR, SLASH, EQUAL,
-LEFT_PAREN, RIGHT_PAREN,
-END_OF_FILE, UNKNOWN
-```
-
-Each `Token` carries its `type`, its raw source text (`lexeme`), and the
-source `line` it came from, so every later stage can report line-numbered
-errors. The lexer ([src/lexer.cpp](src/lexer.cpp)) throws a
-`Lexical error on line N: ...` for an invalid character, an unterminated
-string, or a number immediately followed by a letter (e.g. `123abc`).
-
-## AST structure
-
-Defined in [include/ast.h](include/ast.h). Every node - `Expression` and
-`Statement` alike - carries the source `line` it came from. Concrete nodes:
-
-- `NumberExpression`, `StringExpression`, `VariableExpression`
-- `BinaryExpression` (left, operator character, right)
-- `LetStatement`, `PrintStatement`
-- `RepeatStatement` (count expression + a body of statements)
-- `Program` (the root: a list of top-level statements)
-
-The parser ([src/parser.cpp](src/parser.cpp)) is a straightforward
-recursive-descent parser matching the grammar above, building this tree
-directly with `std::unique_ptr` ownership (no manual memory management,
-no raw-pointer ownership ambiguity).
-
-## Semantic analysis
-
-[include/semantic.h](include/semantic.h) / [src/semantic.cpp](src/semantic.cpp)
-
-`SemanticAnalyzer` walks the AST once and checks:
-
-- **Declared before use** - using a variable that was never `let`
-- **No redeclaration** - `let x` twice anywhere in the program is an error
-- **Type validity** - see the table below
-- **Repeat count validity** - must be an `Int`, and must be a compile-time
-  constant expression (see *Assumptions*)
-
-Only two types exist: `Int` and `String`. Valid binary operations:
-
-| Operation | Valid? |
-|---|---|
-| `int + int`, `int - int`, `int * int`, `int / int` | yes, produces `Int` |
-| `string + string` | yes, produces `String` (concatenation) |
-| any other mix (`int + string`, `string - string`, `string * int`, ...) | no - semantic error |
-
-Errors are reported as `Semantic error on line N: ...` and stop compilation
-immediately (no partial IR/optimization/energy/codegen/report runs after a
-semantic error).
-
-## Symbol table
-
-A single flat `std::unordered_map<std::string, Symbol>`
-([include/semantic.h](include/semantic.h)), where each `Symbol` stores the
-variable's `name`, `type`, and the line it was declared on. There is
-deliberately **no scope stack** - EcoLang has one global namespace for the
-whole program, including variables declared inside a `repeat` block (see
-*Assumptions*).
-
-## IR structure
-
-[include/ir.h](include/ir.h) / [src/ir.cpp](src/ir.cpp)
-
-The AST is lowered into a flat `std::vector<IRInstruction>` (`IRProgram`) -
-classic three-address code, not a tree. Five opcodes:
-
-```
-STORE       dest = operandA
-BINARY_OP   dest = operandA <op> operandB
-PRINT       operandA
-LOOP_START  operandA   (iteration count)
-LOOP_END
-```
-
-An operand (`IROperand`) is tagged as an `IntConstant`, a `StringConstant`,
-or a `Name` (a variable or a compiler-generated temporary). Multi-step
-arithmetic is flattened using temporaries named `$t1, $t2, ...` - the `$`
-prefix can never collide with a user identifier, since EcoLang identifiers
-must start with a letter or underscore. Every instruction keeps the source
-`line` of the AST node that produced it. Nested `repeat` blocks become
-nested `LOOP_START`/`LOOP_END` pairs in the same flat vector - there is no
-separate tree structure to track nesting.
-
-Example: `let x = 2 + 3 * 4` lowers to:
-
-```
-BINARY_OP $t1 = 3 * 4
-BINARY_OP $t2 = 2 + $t1
-STORE     x   = $t2
-```
-
-## Optimization techniques
-
-[include/optimizer.h](include/optimizer.h) / [src/optimizer.cpp](src/optimizer.cpp)
-
-`Optimizer::optimize` runs two passes over the IR and returns a new,
-optimized `IRProgram`:
-
-1. **Constant folding** - a `BINARY_OP` on two integer constants is
-   computed at compile time and replaced with a `STORE` of the result
-   (never for division by zero, which is left untouched).
-2. **Constant propagation** - a small map remembers which variables/temps
-   currently hold a known constant, and substitutes that constant into
-   every later operand that references them by name (including a
-   `repeat` loop's own count operand).
-3. **Algebraic simplification** - exactly seven safe integer identities:
-   `x+0`, `0+x`, `x-0`, `x*1`, `1*x`, `x*0`, `0*x`.
-4. **Dead temporary elimination** - a compiler-generated `$t...` temporary
-   whose value is never read after the above passes is dropped entirely.
-   User-named variables are never removed, even if seemingly unused.
-
-`LOOP_START`/`LOOP_END` act as a barrier: any constant knowledge learned
-about a variable *inside* a loop body is forgotten again once the loop
-closes (the loop might run zero or many times), so it never incorrectly
-leaks to code after the loop. Folding pure arithmetic inside a loop body is
-still done freely, since that's safe regardless of iteration count.
-
-`Optimizer::getStats()` returns an `OptimizationStats` describing exactly
-what the most recent `optimize()` call did (instruction counts before/after,
-plus how many times each of the four techniques above actually fired) - the
-compiler prints this as the `[Optimization]` section of its normal output.
-These counts are computed directly from the real transformations above, not
-estimated. One subtlety: if a `BINARY_OP`'s *other* operand also happens to
-already be a known constant (e.g. `c + 0` where `c` was itself propagated
-in as a literal), that instruction is fully folded rather than identity-
-simplified, since the "both operands are constants" check runs first - so
-it's counted under Constant Folding, not Algebraic Simplification. The
-identity counter only increments when one side is a known identity
-constant (`0` or `1`) and the *other* side genuinely isn't foldable.
-
-## Energy cost model
-
-[include/energy.h](include/energy.h) / [src/energy.cpp](src/energy.cpp)
-
-`analyzeEnergy` walks the **optimized** IR once, keeping a running loop
-multiplier (a stack, multiplied by each `LOOP_START`'s count and restored
-on the matching `LOOP_END`) to know how many times each instruction will
-actually execute. Cost table:
-
-| Operation | Cost |
-|---|---|
-| Assignment (`STORE`) | 1 unit |
-| Arithmetic (`BINARY_OP`) | 1 unit |
-| Comparison | 1 unit (always 0 occurrences today - EcoLang has no comparison operators yet) |
-| Print (`PRINT`) | 5 units |
-| Loop overhead | 1 unit **per iteration** |
-
-The result (`EnergyReport`) contains a full breakdown (assignment /
-arithmetic / comparison / loop-iteration / print counts), `totalOperations`
-(unweighted), and an energy breakdown - `assignmentEnergy`, `arithmeticEnergy`,
-`comparisonEnergy`, `loopEnergy`, `printEnergy` - which is each count above
-multiplied by its cost from the table. `totalEnergyUnits` is simply the sum
-of those five (never computed a second, different way), and `estimatedJoules`
-is `totalEnergyUnits * kJoulesPerEnergyUnit`. All of this is computed once,
-in `analyzeEnergy` itself; `report.cpp` only formats the numbers it's given.
-See *Assumptions* for the two intentional deviations from the requirements
-document baked into this model, and why.
-
-## Code generation
-
-[include/codegen.h](include/codegen.h) / [src/codegen.cpp](src/codegen.cpp)
-
-`CodeGenerator::generate` takes the optimized IR and emits a simple,
-readable pseudo-assembly text listing - **not** real machine code, real
-assembly, or LLVM IR, just a one-line-per-instruction translation meant to
-be easy to read in a demo:
-
-```
-STORE x = 5              ->  MOV x, 5
-BINARY_OP $t1 = 2 + 3    ->  ADD $t1, 2, 3   (SUB/MUL/DIV likewise)
-PRINT x                  ->  PRINT x
-LOOP_START 5              -> LOOP_START 5
-LOOP_END                  -> LOOP_END
-```
-
-Instruction order and loop structure are always preserved exactly. An
-unrecognized IR opcode or `BINARY_OP` operator raises a clear,
-line-numbered `Code generation error on line N: ...` instead of silently
-emitting something wrong.
-
-## Final pipeline
-
-[src/main.cpp](src/main.cpp) wires every stage together:
-
-```
-source file
+source file (.c)
   -> Lexer            (source -> tokens)
   -> Parser            (tokens -> AST)
   -> SemanticAnalyzer  (checks the AST; stops here on error)
@@ -259,13 +65,186 @@ source file
   -> ReportGenerator   (EnergyReport -> formatted report text)
 ```
 
-Energy analysis and code generation are both run on the **same** optimized
-IR value (energy analysis is never run twice, and never run on the raw
-IR). Any error at any stage is caught once, printed to stderr, and the
-program exits with status 1 - no later stage ever runs after an earlier
-one has failed.
+[src/main.cpp](src/main.cpp) wires every stage together. Energy analysis
+and code generation both run on the **same** optimized IR (energy
+analysis is never run twice, and never run on the raw IR). Any error at
+any stage is caught once, printed to stderr, and the program exits with
+status 1 - no later stage ever runs after an earlier one has failed.
 
-## How to compile
+### Lexer and tokens
+
+[include/lexer.h](include/lexer.h) / [src/lexer.cpp](src/lexer.cpp),
+tokens defined in [include/token.h](include/token.h). Hand-written,
+character-at-a-time scanning (no regex). Every `Token` carries its `type`,
+raw source text, and source `line`, so every later stage can report
+line-numbered errors. The lexer throws a `Lexical error on line N: ...`
+for an invalid character, an unterminated string, or a number immediately
+followed by a letter (e.g. `123abc`). Two-character operators (`==`, `!=`,
+`<=`, `>=`) are recognized with one character of lookahead, the same
+technique already used to tell `/`, `//`, and `/*` apart.
+
+### AST and parser
+
+[include/ast.h](include/ast.h) - every node carries the source `line` it
+came from. A `Program` is a list of `FunctionDeclaration`s (one of which
+must be named `main`, taking no parameters and returning `int` - checked
+by semantic analysis, not the parser). The parser
+([src/parser.cpp](src/parser.cpp)) is a straightforward recursive-descent
+parser matching the grammar below, building the tree with `std::unique_ptr`
+ownership throughout.
+
+```
+program            -> functionDeclaration*
+functionDeclaration -> ("int" | "void") IDENTIFIER "(" parameters? ")" block
+parameters         -> "int" IDENTIFIER ("," "int" IDENTIFIER)*
+block              -> "{" statement* "}"
+
+statement -> declaration | assignment | printfStatement | returnStatement
+           | ifStatement | whileStatement | forStatement | callStatement
+           | block
+
+declaration     -> "int" IDENTIFIER ("=" expression)? ";"
+assignment      -> IDENTIFIER "=" expression ";"
+printfStatement -> "printf" "(" STRING ("," expression)* ")" ";"
+returnStatement -> "return" expression? ";"
+ifStatement     -> "if" "(" condition ")" block ("else" (ifStatement | block))?
+whileStatement  -> "while" "(" condition ")" block
+forStatement    -> "for" "(" (declaration | assignment) condition ";" update ")" block
+update          -> IDENTIFIER "=" expression   (an assignment, but with no ";" of its own)
+callStatement   -> IDENTIFIER "(" arguments? ")" ";"
+
+condition  -> expression ("==" | "!=" | "<" | "<=" | ">" | ">=") expression
+expression -> term (("+" | "-") term)*
+term       -> factor (("*" | "/") factor)*
+factor     -> NUMBER | IDENTIFIER | call | "(" expression ")"
+call       -> IDENTIFIER "(" arguments? ")"
+arguments  -> expression ("," expression)*
+```
+
+### Semantic analysis
+
+[include/semantic.h](include/semantic.h) /
+[src/semantic.cpp](src/semantic.cpp). Function signatures are collected
+in a first pass, before any function body is checked, so functions can
+call each other regardless of declaration order - this is what makes
+mutual recursion work without needing forward declarations. Then each
+function's body is checked using its own fresh, flat symbol table, seeded
+with its parameters. Checks performed:
+
+- Declared before use, and no redeclaration (variables and functions alike)
+- Every call's argument count matches the callee's declared parameter count, and each argument expression is itself valid
+- A `void` function's result cannot be used as a value (only as a discarded, standalone call statement)
+- A `void` function cannot `return` a value
+- Every `if`/`while`/`for` condition is a valid comparison
+- The program defines exactly one `main`, taking no parameters and returning `int`
+
+Errors are reported as `Semantic error on line N: ...` (or, for a missing
+`main`, a plain `Semantic error: ...` with no single line to point to) and
+stop compilation immediately.
+
+### IR
+
+[include/ir.h](include/ir.h) / [src/ir.cpp](src/ir.cpp). The AST is
+lowered into a flat `std::vector<IRInstruction>` - three-address code, not
+a tree. Opcodes: `STORE`, `BINARY_OP`, `COMPARE`, `PRINT`, `LOOP_START`/
+`LOOP_END`, `IF_START`/`ELSE`/`IF_END`, `RETURN`, `FUNC_START`/`FUNC_END`,
+`CALL`. Every function is emitted once, as `FUNC_START name(params) ...
+FUNC_END name`; the program's actual entry point is a synthetic `CALL
+main` appended after every function definition. A recursive call is just
+an ordinary `CALL` whose target happens to be the function currently being
+defined - no special-casing needed anywhere in the pipeline.
+
+## Optimization
+
+[include/optimizer.h](include/optimizer.h) /
+[src/optimizer.cpp](src/optimizer.cpp). `Optimizer::optimize` runs constant
+folding (arithmetic and comparisons), constant propagation, seven safe
+algebraic identities (`x+0`, `0+x`, `x-0`, `x*1`, `1*x`, `x*0`, `0*x`), and
+dead-temporary elimination (compiler-generated `$t...` temporaries only -
+user-named variables and `CALL` instructions are never removed, since a
+call may have side effects regardless of whether its result is used).
+
+`LOOP_START`/`LOOP_END` and `IF_START`/`ELSE`/`IF_END` act as barriers:
+after a loop or `if`/`else`, a variable's value is only still trusted if it
+is *unchanged* from before the region - anything reassigned inside it, or
+newly introduced inside it, is forgotten, since we don't know at compile
+time how many times the loop ran or which branch was taken.
+`FUNC_START`/`FUNC_END` use a stronger, full reset instead: a function's
+parameters come fresh from whatever the caller passed, so nothing about
+the caller's known values applies inside it. There is no interprocedural
+constant folding or inlining across a `CALL` - each function is optimized
+using only what's known about its own body.
+
+## Energy analysis
+
+[include/energy.h](include/energy.h) / [src/energy.cpp](src/energy.cpp).
+Cost table (estimated computational cost, not a real hardware
+measurement):
+
+| Operation | Cost |
+|---|---|
+| Assignment (`STORE`) | 1 unit |
+| Arithmetic (`BINARY_OP`) | 1 unit |
+| Comparison (`COMPARE`) | 1 unit |
+| Print (`PRINT`) | 5 units |
+| Loop overhead | 1 unit per iteration |
+
+`analyzeEnergy` computes each function's own energy cost separately
+(splitting the IR at each `FUNC_START`/`FUNC_END` pair), starting from
+`main` and following `CALL`s on demand, memoizing each function's cost so
+it's never recomputed. A function's cost is only ever computed if `main`
+can actually reach it - an unreachable function contributes nothing. When
+a call is encountered inside a loop or another function, the callee's
+already-computed cost is scaled by whatever loop multiplier is active at
+that call site. Recursion (direct or mutual) is detected - when a
+function's cost calculation would call back into a function still being
+computed, that function's own non-recursive tally is instead multiplied
+by `kAssumedRecursionDepth` (a named, illustrative placeholder, exactly
+like `kAssumedLoopIterations` for loops - see *Assumptions*). `if`/`else`
+counts both branches as if they always execute (a documented
+over-approximation, not real control-flow simulation), and `Time
+Complexity` reflects only `main`'s own loop nesting, treating every call
+as opaque - consistent with there being no other interprocedural analysis
+anywhere in the compiler.
+
+## Code generation
+
+[include/codegen.h](include/codegen.h) /
+[src/codegen.cpp](src/codegen.cpp). `CodeGenerator::generate` takes the
+optimized IR and emits a simple, readable pseudo-assembly text listing -
+**not** real machine code, real assembly, or LLVM IR:
+
+```
+STORE x = 5                    -> MOV x, 5
+BINARY_OP $t1 = 2 + 3          -> ADD $t1, 2, 3   (SUB/MUL/DIV likewise)
+COMPARE $t1 = a < b            -> CMPLT $t1, a, b
+PRINT "x = %d", x              -> PRINT "x = %d", x
+LOOP_START 5 / LOOP_END        -> LOOP_START 5 / LOOP_END
+IF_START $t1 / ELSE / IF_END   -> IF_START $t1 / ELSE / IF_END
+FUNC_START f(a, b) / FUNC_END f -> FUNC_START f(a, b) / FUNC_END f
+CALL $t1 = f, 2, 3             -> CALL $t1, f, 2, 3
+RETURN x                       -> RETURN x
+```
+
+Instruction order and structure are always preserved exactly. An
+unrecognized IR opcode or operator raises a clear, line-numbered `Code
+generation error on line N: ...` instead of silently emitting something
+wrong.
+
+## Project structure
+
+```
+EcoLang/
+  include/    header files (one per module)
+  src/        implementation files, plus main.cpp (the driver)
+  samples/    example .c programs (hello.c, loops.c, nested.c)
+  tests/      small, single-purpose .c test programs (see tests/README.md)
+  build/      compiled output (gitignored)
+  CMakeLists.txt
+  README.md
+```
+
+## How to build
 
 With `g++` directly (no external dependencies):
 
@@ -289,127 +268,93 @@ behavior; `CMakeLists.txt` is kept in sync with the `g++` command above.
 ## How to run it
 
 ```sh
-./build/ecolang <path-to-file.eco>
+./build/ecolang <path-to-file.c>
 ```
 
 Passing no file prints a usage message and exits 1. Passing a file that
 can't be opened, or a program that fails to lex/parse/type-check, prints a
 single clear error message and exits 1.
 
+## Sample programs
+
+- [samples/hello.c](samples/hello.c) - declarations, arithmetic, a
+  function with parameters and a return value, and `printf`
+- [samples/loops.c](samples/loops.c) - a `while` loop accumulating a
+  running total
+- [samples/nested.c](samples/nested.c) - nested `while` loops (a small
+  multiplication table)
+
+## Testing
+
+[tests/](tests/) contains 28 small, single-purpose `.c` programs - 18
+valid programs, each demonstrating one language feature, and 10 invalid
+programs, each triggering exactly one error category (see
+[tests/README.md](tests/README.md) for the full list). Every valid
+program should compile successfully (exit 0); every invalid program
+should fail with a single clear error message and exit 1, without any
+later pipeline stage running.
+
 ## Example EcoLang program
 
+```c
+int factorial(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+int main() {
+    int result = factorial(5);
+    printf("%d\n", result);
+    return 0;
+}
 ```
-let x = 2 + 3 * 4
-print x
-
-repeat 10
-    repeat 20
-        print "Hi"
-    end
-end
-```
-
-## Example output
-
-```
-========================================
-           EcoLang Compiler
-========================================
-
-[Optimization]
------------------
-Original IR Instructions   : 9
-Optimized IR Instructions  : 7
-Instructions Removed       : 2
-
-Constant Folding           : 2
-Constant Propagation       : 3
-Algebraic Simplification   : 0
-Dead Temporary Elimination : 2
-
-[Code Generation]
------------------
-MOV x, 14
-PRINT 14
-LOOP_START 10
-LOOP_START 20
-PRINT "Hi"
-LOOP_END
-LOOP_END
-
-[Energy Report]
-----------------
-========================================
-        EcoLang Energy Report
-========================================
-
-Operation Counts
-----------------
-Assignments         : 1
-Arithmetic Ops      : 0
-Comparisons         : 0
-Loop Iterations     : 210
-Print Statements    : 201
-Total Operations    : 412
-
-Energy Breakdown
-----------------
-Assignment Energy   : 1
-Arithmetic Energy   : 0
-Comparison Energy   : 0
-Loop Energy         : 210
-Print Energy        : 1005
-
-Total Energy Units  : 1216
-Estimated Energy    : 0.0001216 J
-
-Complexity
-----------
-Time Complexity     : O(n^2)
-```
-
-Note that `Arithmetic Ops` is `0`: the optimizer folds `2 + 3 * 4` down to
-the constant `14` before energy analysis or code generation ever run, so
-there is no arithmetic left to count or execute.
 
 ## Assumptions and limitations
 
 These are deliberate, documented decisions made while building EcoLang -
-not requirements handed down by the project brief, except where noted:
+not requirements handed down by an external spec, except where noted:
 
-- EcoLang currently supports **Int and String** values only - no boolean,
-  no float.
-- The symbol table is **global/flat**; there are no nested/block scopes. A
-  variable declared inside a `repeat` block is visible for the rest of the
-  program after the block ends.
-- **Variables cannot be reassigned** after declaration - there is no bare
-  `x = value` statement, only `let x = value`, and declaring the same name
-  twice is a semantic error. This means a variable's value is fixed for
-  the rest of the program once declared.
-- **Repeat counts must be compile-time constant expressions** (a literal,
-  or arithmetic built only from literals) - not an arbitrary variable.
-  This is a project assumption, not an explicit requirement in the source
-  document, but it's necessary: without it, neither the energy analyzer
-  nor the code generator's `LOOP_START` would have a concrete iteration
-  count to work with.
-- **Loop overhead is modeled as 1 energy unit per iteration.** The
-  requirements document's own cost table lists "Loop Overhead = 2-3", but
-  its worked example (`repeat 100` -> "Loop overhead = 100") only makes
-  sense at 1 unit per iteration. This implementation follows the worked
-  example; the constant is named (`kLoopOverheadUnitsPerIteration` in
-  `energy.h`) so it can be changed to 2 or 3 in one place if needed.
+- **No block-level scoping.** Each function has one flat local scope,
+  seeded with its parameters. A variable declared inside an `if`/`while`/
+  `for` is visible for the rest of that *function* - the same
+  simplification the earlier phases used for the whole program, now
+  scoped per function instead.
+- **Variables cannot be reassigned in the same statement they're
+  declared in** - only via a separate `x = value;` assignment - and
+  declaring the same name twice in one function is a semantic error.
+- **`while`/`for` loops always compile to a fixed, assumed iteration
+  count** (`kAssumedLoopIterations`, currently 10), regardless of their
+  real runtime condition - there is no static loop-bound analysis. The
+  condition is still fully checked for validity in semantic analysis; it
+  just isn't part of the generated IR, since the energy/codegen model
+  intentionally abstracts every loop as "runs N times."
+- **Recursion depth is similarly assumed**, via `kAssumedRecursionDepth`
+  (currently 10) - there is no attempt to analyze how deep a recursive
+  call chain actually goes.
+- **No reachability/return-path analysis.** A non-`int`-void function is
+  not verified to return a value on every code path - a bare `return;`
+  inside an `int` function is accepted without further checking, matching
+  how real compilers historically handled this before more advanced flow
+  analysis existed.
+- **`if`/`else` energy accounting counts both branches as if they always
+  ran** - a worst-case over-approximation, not real control-flow
+  simulation, which keeps the energy analyzer a single flat pass with no
+  control-flow graph.
+- **No interprocedural optimization** - constant folding/propagation
+  never crosses a `CALL`; each function is optimized using only its own
+  body.
+- **Time complexity is a structural loop-nesting heuristic**, based only
+  on `main`'s own maximum loop nesting depth, not a full asymptotic
+  analysis - it does not attempt to trace complexity through function
+  calls.
 - **1 energy unit = `1e-7` J is an illustrative scaling factor**, not a
-  hardware measurement - the requirements document doesn't specify a real
-  conversion, and this exists purely to give the report a human-readable
+  hardware measurement, purely to give the report a human-readable
   Joules figure.
-- **Time complexity is a structural loop-nesting heuristic**, not a full
-  asymptotic analysis: 0 loop levels -> `O(1)`, 1 -> `O(n)`, 2 -> `O(n^2)`,
-  and so on, based purely on maximum loop nesting depth in the IR.
-- **Energy analysis runs on optimized IR**, never on the raw IR - the
-  pipeline always calls the optimizer first, and both energy analysis and
-  code generation consume that same optimized result.
+- **Loop overhead is modeled as 1 energy unit per iteration** (named
+  `kLoopOverheadUnitsPerIteration`, changeable in one place).
 - There is no unary minus, so negative number literals (`-5`) are not
   supported.
-- Error recovery stops at the first error in each stage (lexer, parser, or
-  semantic analyzer) rather than collecting and reporting multiple errors
-  at once.
+- Error recovery stops at the first error in each stage rather than
+  collecting and reporting multiple errors at once.
