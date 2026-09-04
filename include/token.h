@@ -5,13 +5,13 @@
 
 enum class TokenType {
     INT,
-    MAIN,
     PRINTF,
     RETURN,
     IF,
     ELSE,
     WHILE,
     FOR,
+    VOID,
     IDENTIFIER,
     NUMBER,
     STRING,

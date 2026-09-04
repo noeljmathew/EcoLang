@@ -29,6 +29,13 @@ constexpr long long kLoopOverheadUnitsPerIteration = 1;
 // human-readable "estimated Joules" figure.
 constexpr double kJoulesPerEnergyUnit = 1e-7;
 
+// No real recursion-depth analysis: when a function's cost calculation
+// finds it is about to call back into a function still being computed
+// (direct or mutual recursion), that function's own non-recursive tally
+// is multiplied by this instead. Illustrative placeholder, not a real
+// bound analysis - styled like kAssumedLoopIterations in ir.h.
+constexpr long long kAssumedRecursionDepth = 10;
+
 struct EnergyBreakdown {
     long long assignmentCount = 0;
     long long arithmeticCount = 0;

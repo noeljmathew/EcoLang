@@ -16,7 +16,10 @@ enum class IROpcode {
     COMPARE,
     IF_START,
     ELSE,
-    IF_END
+    IF_END,
+    FUNC_START,
+    FUNC_END,
+    CALL
 };
 
 // No static loop-bound analysis in this phase: every while/for loop
@@ -67,6 +70,14 @@ struct IRInstruction {
     // operandB, a 0/1 value) - operatorSymbol is a single char and
     // cannot represent <=, >=, ==, or !=.
     ComparisonOp comparisonOp = ComparisonOp::Equal;
+
+    // Used by FUNC_START (the function being defined) and CALL (the
+    // function being invoked). FUNC_START's parameter names reuse
+    // operandList (one Name operand per parameter), the same way PRINT
+    // already reuses it for a variable-length list of things. CALL's
+    // arguments also live in operandList; its return value's temp uses
+    // the existing destination field, same pattern as BINARY_OP/COMPARE.
+    std::string functionName;
 };
 
 using IRProgram = std::vector<IRInstruction>;
@@ -88,8 +99,11 @@ private:
     void generateIf(const IfStatement* statement, IRProgram& output);
     void generateWhile(const WhileStatement* statement, IRProgram& output);
     void generateFor(const ForStatement* statement, IRProgram& output);
+    void generateCallStatement(const CallStatement* statement, IRProgram& output);
+    void generateFunction(const FunctionDeclaration* function, IRProgram& output);
     IROperand generateExpression(const Expression* expression, IRProgram& output);
     IROperand generateComparison(const ComparisonExpression* condition, IRProgram& output);
+    IROperand generateCall(const CallExpression* call, IRProgram& output);
 
     // Generates a fresh compiler-internal name ($t1, $t2, ...). The '$'
     // prefix can never collide with a user identifier, since identifiers

@@ -21,7 +21,48 @@ const Symbol* SymbolTable::lookup(const std::string& name) const {
 }
 
 void SemanticAnalyzer::analyze(const Program& program) {
-    analyzeBlock(program.mainFunction->body.get());
+    collectFunctionSignatures(program);
+    requireMainFunction();
+
+    for (const std::unique_ptr<FunctionDeclaration>& function : program.functions) {
+        analyzeFunction(function.get());
+    }
+}
+
+void SemanticAnalyzer::collectFunctionSignatures(const Program& program) {
+    for (const std::unique_ptr<FunctionDeclaration>& function : program.functions) {
+        FunctionSignature signature{function->returnType,
+                                    static_cast<int>(function->parameters.size()), function->line};
+        if (!functions.insert({function->name, signature}).second) {
+            throw error(function->line, "function '" + function->name + "' is already declared.");
+        }
+    }
+}
+
+void SemanticAnalyzer::requireMainFunction() const {
+    auto it = functions.find("main");
+    if (it == functions.end()) {
+        throw std::runtime_error(
+            "Semantic error: program must define a function named 'main' "
+            "that takes no parameters and returns int.");
+    }
+
+    if (it->second.returnType != ReturnType::Int || it->second.parameterCount != 0) {
+        throw error(it->second.declaredLine, "'main' must take no parameters and return int.");
+    }
+}
+
+void SemanticAnalyzer::analyzeFunction(const FunctionDeclaration* function) {
+    symbols = SymbolTable{};
+    currentFunctionReturnType = function->returnType;
+
+    for (const std::string& parameter : function->parameters) {
+        if (!symbols.declare(parameter, ValueType::Int, function->line)) {
+            throw error(function->line, "parameter '" + parameter + "' is already declared.");
+        }
+    }
+
+    analyzeBlock(function->body.get());
 }
 
 void SemanticAnalyzer::analyzeBlock(const BlockStatement* block) {
@@ -49,6 +90,8 @@ void SemanticAnalyzer::analyzeStatement(const Statement* statement) {
         analyzeWhile(whileStatement);
     } else if (const ForStatement* forStatement = dynamic_cast<const ForStatement*>(statement)) {
         analyzeFor(forStatement);
+    } else if (const CallStatement* callStatement = dynamic_cast<const CallStatement*>(statement)) {
+        analyzeCallStatement(callStatement);
     } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
         analyzeBlock(block);
     }
@@ -81,8 +124,14 @@ void SemanticAnalyzer::analyzePrintf(const PrintfStatement* printfStatement) {
 
 void SemanticAnalyzer::analyzeReturn(const ReturnStatement* returnStatement) {
     if (returnStatement->value != nullptr) {
+        if (currentFunctionReturnType == ReturnType::Void) {
+            throw error(returnStatement->line, "void function cannot return a value.");
+        }
         typeOfExpression(returnStatement->value.get());
     }
+    // A bare "return;" in an int function is allowed without further
+    // checking - this project does not verify that every code path
+    // returns a value (a documented simplification, not an oversight).
 }
 
 void SemanticAnalyzer::analyzeIf(const IfStatement* ifStatement) {
@@ -111,6 +160,31 @@ void SemanticAnalyzer::checkCondition(const ComparisonExpression* condition) {
     typeOfExpression(condition->right.get());
 }
 
+void SemanticAnalyzer::analyzeCallStatement(const CallStatement* callStatement) {
+    checkCall(callStatement->call.get());
+}
+
+const FunctionSignature& SemanticAnalyzer::checkCall(const CallExpression* call) {
+    auto it = functions.find(call->callee);
+    if (it == functions.end()) {
+        throw error(call->line, "function '" + call->callee + "' is not declared.");
+    }
+
+    const FunctionSignature& signature = it->second;
+    if (static_cast<int>(call->arguments.size()) != signature.parameterCount) {
+        throw error(call->line, "function '" + call->callee + "' expects " +
+                                     std::to_string(signature.parameterCount) +
+                                     " argument(s) but got " +
+                                     std::to_string(call->arguments.size()) + ".");
+    }
+
+    for (const std::unique_ptr<Expression>& argument : call->arguments) {
+        typeOfExpression(argument.get());
+    }
+
+    return signature;
+}
+
 ValueType SemanticAnalyzer::typeOfExpression(const Expression* expression) {
     if (dynamic_cast<const NumberExpression*>(expression) != nullptr) {
         return ValueType::Int;
@@ -123,6 +197,15 @@ ValueType SemanticAnalyzer::typeOfExpression(const Expression* expression) {
         }
 
         return symbol->type;
+    }
+
+    if (const CallExpression* call = dynamic_cast<const CallExpression*>(expression)) {
+        const FunctionSignature& signature = checkCall(call);
+        if (signature.returnType != ReturnType::Int) {
+            throw error(call->line, "cannot use the result of void function '" + call->callee +
+                                         "' as a value.");
+        }
+        return ValueType::Int;
     }
 
     if (const BinaryExpression* binary = dynamic_cast<const BinaryExpression*>(expression)) {

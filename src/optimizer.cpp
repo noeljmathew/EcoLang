@@ -143,6 +143,36 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
             continue;
         }
 
+        if (instruction.opcode == IROpcode::FUNC_START) {
+            // Hard reset, not the loop/if soft barrier: a function's
+            // parameters come fresh from whatever CALL passed in, so
+            // nothing about the caller's constants applies inside it.
+            savedStates.push_back(knownConstants);
+            knownConstants.clear();
+            output.push_back(instruction);
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::FUNC_END) {
+            output.push_back(instruction);
+            if (!savedStates.empty()) {
+                knownConstants = savedStates.back();
+                savedStates.pop_back();
+            }
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::CALL) {
+            for (IROperand& argument : instruction.operandList) {
+                argument = resolveOperand(argument, knownConstants);
+            }
+            output.push_back(instruction);
+            // Opaque result - no interprocedural constant folding or
+            // inlining. Same pattern as an unfoldable BINARY_OP.
+            knownConstants.erase(instruction.destination);
+            continue;
+        }
+
         if (instruction.opcode == IROpcode::COMPARE) {
             IROperand left = resolveOperand(instruction.operandA, knownConstants);
             IROperand right = resolveOperand(instruction.operandB, knownConstants);

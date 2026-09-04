@@ -5,8 +5,48 @@
 
 IRProgram IRGenerator::generate(const Program& program) {
     IRProgram output;
-    generateBlock(program.mainFunction->body.get(), output);
+
+    int mainLine = 0;
+    for (const std::unique_ptr<FunctionDeclaration>& function : program.functions) {
+        generateFunction(function.get(), output);
+        if (function->name == "main") {
+            mainLine = function->line;
+        }
+    }
+
+    // The function definitions above are just definitions sitting in the
+    // instruction stream until something calls them - this is what
+    // actually runs the program. Semantic analysis already guarantees a
+    // valid main() exists, so mainLine is always set by the loop above.
+    IRInstruction callMain{};
+    callMain.opcode = IROpcode::CALL;
+    callMain.functionName = "main";
+    callMain.line = mainLine;
+    output.push_back(callMain);
+
     return output;
+}
+
+void IRGenerator::generateFunction(const FunctionDeclaration* function, IRProgram& output) {
+    IRInstruction funcStart{};
+    funcStart.opcode = IROpcode::FUNC_START;
+    funcStart.functionName = function->name;
+    for (const std::string& parameter : function->parameters) {
+        IROperand operand{};
+        operand.kind = IROperandKind::Name;
+        operand.text = parameter;
+        funcStart.operandList.push_back(operand);
+    }
+    funcStart.line = function->line;
+    output.push_back(funcStart);
+
+    generateBlock(function->body.get(), output);
+
+    IRInstruction funcEnd{};
+    funcEnd.opcode = IROpcode::FUNC_END;
+    funcEnd.functionName = function->name;
+    funcEnd.line = function->line;
+    output.push_back(funcEnd);
 }
 
 void IRGenerator::generateStatement(const Statement* statement, IRProgram& output) {
@@ -29,6 +69,8 @@ void IRGenerator::generateStatement(const Statement* statement, IRProgram& outpu
         generateWhile(whileStatement, output);
     } else if (const ForStatement* forStatement = dynamic_cast<const ForStatement*>(statement)) {
         generateFor(forStatement, output);
+    } else if (const CallStatement* callStatement = dynamic_cast<const CallStatement*>(statement)) {
+        generateCallStatement(callStatement, output);
     } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
         generateBlock(block, output);
     }
@@ -152,6 +194,33 @@ void IRGenerator::generateFor(const ForStatement* statement, IRProgram& output) 
     output.push_back(loopEnd);
 }
 
+void IRGenerator::generateCallStatement(const CallStatement* statement, IRProgram& output) {
+    generateCall(statement->call.get(), output);
+    // The result temp is simply never referenced again - dead-temporary
+    // elimination cannot remove it (CALL is never treated as pure, see
+    // optimizer.cpp), so the call itself is always kept.
+}
+
+IROperand IRGenerator::generateCall(const CallExpression* call, IRProgram& output) {
+    std::vector<IROperand> arguments;
+    for (const std::unique_ptr<Expression>& argument : call->arguments) {
+        arguments.push_back(generateExpression(argument.get(), output));
+    }
+
+    IRInstruction instruction{};
+    instruction.opcode = IROpcode::CALL;
+    instruction.functionName = call->callee;
+    instruction.destination = newTemp();
+    instruction.operandList = std::move(arguments);
+    instruction.line = call->line;
+    output.push_back(instruction);
+
+    IROperand result{};
+    result.kind = IROperandKind::Name;
+    result.text = instruction.destination;
+    return result;
+}
+
 IROperand IRGenerator::generateComparison(const ComparisonExpression* condition,
                                           IRProgram& output) {
     IROperand left = generateExpression(condition->left.get(), output);
@@ -187,6 +256,10 @@ IROperand IRGenerator::generateExpression(const Expression* expression, IRProgra
         operand.kind = IROperandKind::Name;
         operand.text = variable->name;
         return operand;
+    }
+
+    if (const CallExpression* call = dynamic_cast<const CallExpression*>(expression)) {
+        return generateCall(call, output);
     }
 
     if (const BinaryExpression* binary = dynamic_cast<const BinaryExpression*>(expression)) {

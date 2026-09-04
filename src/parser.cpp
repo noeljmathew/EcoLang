@@ -10,19 +10,47 @@ Parser::Parser(const std::vector<Token>& tokens)
 
 std::unique_ptr<Program> Parser::parse() {
     std::unique_ptr<Program> program = std::make_unique<Program>();
-    program->mainFunction = mainFunction();
-    consume(TokenType::END_OF_FILE, "expected end of file after the main function.");
+
+    while (!isAtEnd()) {
+        program->functions.push_back(functionDeclaration());
+    }
+
     return program;
 }
 
-std::unique_ptr<MainFunction> Parser::mainFunction() {
+std::unique_ptr<FunctionDeclaration> Parser::functionDeclaration() {
     int line = peek().line;
-    consume(TokenType::INT, "expected 'int' to begin the main function.");
-    consume(TokenType::MAIN, "expected 'main' after 'int'.");
-    consume(TokenType::LEFT_PAREN, "expected '(' after 'main'.");
-    consume(TokenType::RIGHT_PAREN, "expected ')' after '('.");
+    ReturnType returnType = returnTypeKeyword();
+    const Token& name = consume(TokenType::IDENTIFIER, "expected a function name.");
+    consume(TokenType::LEFT_PAREN, "expected '(' after function name.");
 
-    return std::make_unique<MainFunction>(block(), line);
+    std::vector<std::string> parameters;
+    if (!check(TokenType::RIGHT_PAREN)) {
+        consume(TokenType::INT, "expected 'int' before parameter name.");
+        parameters.push_back(consume(TokenType::IDENTIFIER, "expected a parameter name.").lexeme);
+        while (match(TokenType::COMMA)) {
+            consume(TokenType::INT, "expected 'int' before parameter name.");
+            parameters.push_back(
+                consume(TokenType::IDENTIFIER, "expected a parameter name.").lexeme);
+        }
+    }
+
+    consume(TokenType::RIGHT_PAREN, "expected ')' after parameters.");
+    std::unique_ptr<BlockStatement> body = block();
+
+    return std::make_unique<FunctionDeclaration>(returnType, name.lexeme, std::move(parameters),
+                                                 std::move(body), line);
+}
+
+ReturnType Parser::returnTypeKeyword() {
+    if (match(TokenType::INT)) {
+        return ReturnType::Int;
+    }
+    if (match(TokenType::VOID)) {
+        return ReturnType::Void;
+    }
+
+    throw error(peek(), "expected a return type ('int' or 'void').");
 }
 
 std::unique_ptr<BlockStatement> Parser::block() {
@@ -43,6 +71,9 @@ std::unique_ptr<Statement> Parser::statement() {
         return declaration();
     }
     if (check(TokenType::IDENTIFIER)) {
+        if (checkNext(TokenType::LEFT_PAREN)) {
+            return callStatement();
+        }
         return assignment();
     }
     if (match(TokenType::PRINTF)) {
@@ -182,6 +213,14 @@ std::unique_ptr<Statement> Parser::forStatement() {
                                           std::move(update), std::move(body), line);
 }
 
+std::unique_ptr<Statement> Parser::callStatement() {
+    std::unique_ptr<CallExpression> call = callExpression();
+    int line = call->line;
+    consume(TokenType::SEMICOLON, "expected ';' after call statement.");
+
+    return std::make_unique<CallStatement>(std::move(call), line);
+}
+
 std::unique_ptr<Expression> Parser::expression() {
     int line = peek().line;
     std::unique_ptr<Expression> left = term();
@@ -219,7 +258,11 @@ std::unique_ptr<Expression> Parser::factor() {
         }
     }
 
-    if (match(TokenType::IDENTIFIER)) {
+    if (check(TokenType::IDENTIFIER)) {
+        if (checkNext(TokenType::LEFT_PAREN)) {
+            return callExpression();
+        }
+        advance();
         return std::make_unique<VariableExpression>(previous().lexeme, previous().line);
     }
 
@@ -230,6 +273,23 @@ std::unique_ptr<Expression> Parser::factor() {
     }
 
     throw error(peek(), "expected an expression.");
+}
+
+std::unique_ptr<CallExpression> Parser::callExpression() {
+    const Token& name = consume(TokenType::IDENTIFIER, "expected a function name.");
+    int line = name.line;
+    consume(TokenType::LEFT_PAREN, "expected '(' after function name.");
+
+    std::vector<std::unique_ptr<Expression>> arguments;
+    if (!check(TokenType::RIGHT_PAREN)) {
+        arguments.push_back(expression());
+        while (match(TokenType::COMMA)) {
+            arguments.push_back(expression());
+        }
+    }
+
+    consume(TokenType::RIGHT_PAREN, "expected ')' after call arguments.");
+    return std::make_unique<CallExpression>(name.lexeme, std::move(arguments), line);
 }
 
 std::unique_ptr<ComparisonExpression> Parser::condition() {
@@ -270,6 +330,18 @@ bool Parser::check(TokenType type) const {
     }
 
     return peek().type == type;
+}
+
+// Only used to tell an assignment ("x = ...") apart from a call statement
+// ("x(...)"), and a variable reference apart from a call expression - both
+// start with an identifier, so this looks one token past it before
+// committing to either parsing path.
+bool Parser::checkNext(TokenType type) const {
+    if (current + 1 >= static_cast<int>(tokens.size())) {
+        return false;
+    }
+
+    return tokens[current + 1].type == type;
 }
 
 bool Parser::match(TokenType type) {

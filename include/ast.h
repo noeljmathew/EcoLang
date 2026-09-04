@@ -56,6 +56,18 @@ public:
     std::string name;
 };
 
+// name(arg1, arg2, ...) used as a value, e.g. x = add(a, b) + 1;
+class CallExpression : public Expression {
+public:
+    CallExpression(const std::string& callee, std::vector<std::unique_ptr<Expression>> arguments,
+                   int line)
+        : Expression(line), callee(callee), arguments(std::move(arguments)) {
+    }
+
+    std::string callee;
+    std::vector<std::unique_ptr<Expression>> arguments;
+};
+
 // Shared with ir.h - comparisons only ever need these six kinds, and
 // there is no reason for the AST and IR to each define their own copy.
 enum class ComparisonOp { Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual };
@@ -148,6 +160,17 @@ public:
     std::unique_ptr<Expression> value;
 };
 
+// name(arg1, arg2, ...);  - a call used as a standalone statement, its
+// return value (if any) discarded.
+class CallStatement : public Statement {
+public:
+    CallStatement(std::unique_ptr<CallExpression> call, int line)
+        : Statement(line), call(std::move(call)) {
+    }
+
+    std::unique_ptr<CallExpression> call;
+};
+
 // if (condition) { ... } [else ...]
 // elseBranch is nullptr (no else), a BlockStatement (else { ... }), or
 // another IfStatement (else if ...).
@@ -195,22 +218,35 @@ public:
     std::unique_ptr<BlockStatement> body;
 };
 
-// int main() { ... } - the sole entry point in Phase 1. Not a Statement:
-// it is the one top-level construct Program wraps, not something that
-// can appear inside a block.
-class MainFunction {
+enum class ReturnType { Int, Void };
+
+// int name(int a, int b) { ... }  or  void name(int a) { ... }
+// Every parameter is int (the only parameter type this language has), so
+// parameters are just names - a fresh SymbolTable seeded with them is
+// what gives each function its own flat local scope. Not a Statement:
+// functions are only ever top-level, never nested inside a block.
+class FunctionDeclaration {
 public:
-    MainFunction(std::unique_ptr<BlockStatement> body, int line)
-        : body(std::move(body)), line(line) {
+    FunctionDeclaration(ReturnType returnType, const std::string& name,
+                        std::vector<std::string> parameters,
+                        std::unique_ptr<BlockStatement> body, int line)
+        : returnType(returnType), name(name), parameters(std::move(parameters)),
+          body(std::move(body)), line(line) {
     }
 
+    ReturnType returnType;
+    std::string name;
+    std::vector<std::string> parameters;
     std::unique_ptr<BlockStatement> body;
     int line;
 };
 
+// A flat list of function declarations. Semantic analysis is responsible
+// for requiring one of them to be a valid "main" - there is no longer a
+// separate, special-cased entry-point AST node.
 class Program {
 public:
-    std::unique_ptr<MainFunction> mainFunction;
+    std::vector<std::unique_ptr<FunctionDeclaration>> functions;
 };
 
 #endif

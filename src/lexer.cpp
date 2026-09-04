@@ -134,8 +134,6 @@ void Lexer::identifier() {
 
     if (text == "int") {
         addToken(TokenType::INT);
-    } else if (text == "main") {
-        addToken(TokenType::MAIN);
     } else if (text == "printf") {
         addToken(TokenType::PRINTF);
     } else if (text == "return") {
@@ -148,6 +146,8 @@ void Lexer::identifier() {
         addToken(TokenType::WHILE);
     } else if (text == "for") {
         addToken(TokenType::FOR);
+    } else if (text == "void") {
+        addToken(TokenType::VOID);
     } else {
         addToken(TokenType::IDENTIFIER);
     }

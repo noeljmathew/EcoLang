@@ -67,6 +67,28 @@ std::string CodeGenerator::generateInstruction(const IRInstruction& instruction)
         case IROpcode::IF_END:
             return "IF_END";
 
+        case IROpcode::FUNC_START: {
+            std::string parameters;
+            for (size_t i = 0; i < instruction.operandList.size(); i++) {
+                if (i > 0) {
+                    parameters += ", ";
+                }
+                parameters += operandToText(instruction.operandList[i]);
+            }
+            return "FUNC_START " + instruction.functionName + "(" + parameters + ")";
+        }
+
+        case IROpcode::FUNC_END:
+            return "FUNC_END " + instruction.functionName;
+
+        case IROpcode::CALL: {
+            std::string line = "CALL " + instruction.destination + ", " + instruction.functionName;
+            for (const IROperand& argument : instruction.operandList) {
+                line += ", " + operandToText(argument);
+            }
+            return line;
+        }
+
         default:
             throw std::runtime_error("Code generation error on line " +
                                      std::to_string(instruction.line) + ": unsupported IR opcode.");

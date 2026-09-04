@@ -16,7 +16,8 @@ public:
     std::unique_ptr<Program> parse();
 
 private:
-    std::unique_ptr<MainFunction> mainFunction();
+    std::unique_ptr<FunctionDeclaration> functionDeclaration();
+    ReturnType returnTypeKeyword();
     std::unique_ptr<BlockStatement> block();
 
     std::unique_ptr<Statement> statement();
@@ -28,14 +29,17 @@ private:
     std::unique_ptr<Statement> ifStatement();
     std::unique_ptr<Statement> whileStatement();
     std::unique_ptr<Statement> forStatement();
+    std::unique_ptr<Statement> callStatement();
 
     std::unique_ptr<Expression> expression();
     std::unique_ptr<Expression> term();
     std::unique_ptr<Expression> factor();
     std::unique_ptr<ComparisonExpression> condition();
     ComparisonOp comparisonOperator();
+    std::unique_ptr<CallExpression> callExpression();
 
     bool check(TokenType type) const;
+    bool checkNext(TokenType type) const;
     bool match(TokenType type);
     const Token& advance();
     const Token& peek() const;

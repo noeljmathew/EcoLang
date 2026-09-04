@@ -39,9 +39,24 @@
 // RETURN is resolved (if it carries a value) and passed through
 // unchanged otherwise - never treated as BINARY_OP.
 //
+// FUNC_START/FUNC_END use a hard reset instead of the loop/if soft
+// barrier: FUNC_START saves the current knownConstants and clears it (a
+// function's parameters come fresh from whatever CALL passed in, so
+// nothing about the caller's constants applies inside it), and FUNC_END
+// restores exactly what was saved. This is safe as a full restore -
+// unlike loops/if, function definitions sit back-to-back at the top
+// level with nothing between them, so there is never any "outer" state
+// that could go stale while a function body is being processed. CALL
+// resolves its arguments (in operandList) and then erases its own
+// destination - an opaque result, same as an unfoldable BINARY_OP, since
+// there is no interprocedural constant folding or inlining.
+//
 // Never reorders PRINT / LOOP_START / LOOP_END / IF_START / ELSE /
-// IF_END instructions, never removes a user-named STORE, and only folds
-// integer arithmetic and comparisons (never string concatenation).
+// IF_END / FUNC_START / FUNC_END / CALL instructions, never removes a
+// user-named STORE, never removes a CALL regardless of whether its
+// result is used (it may have side effects), and only folds integer
+// arithmetic and comparisons (never string concatenation, never across
+// a function call).
 
 // Simple counts describing what the most recent optimize() call actually
 // did, computed directly from real transformations the optimizer already
