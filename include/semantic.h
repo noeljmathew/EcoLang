@@ -45,8 +45,12 @@ private:
     void analyzeAssignment(const AssignmentStatement* assignment);
     void analyzePrintf(const PrintfStatement* printfStatement);
     void analyzeReturn(const ReturnStatement* returnStatement);
+    void analyzeIf(const IfStatement* ifStatement);
+    void analyzeWhile(const WhileStatement* whileStatement);
+    void analyzeFor(const ForStatement* forStatement);
 
     ValueType typeOfExpression(const Expression* expression);
+    void checkCondition(const ComparisonExpression* condition);
 
     std::runtime_error error(int line, const std::string& message) const;
 

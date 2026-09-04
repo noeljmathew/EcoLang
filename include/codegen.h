@@ -21,6 +21,7 @@ private:
     std::string generateInstruction(const IRInstruction& instruction) const;
     std::string operandToText(const IROperand& operand) const;
     std::string mnemonicFor(char operatorSymbol, int line) const;
+    std::string comparisonMnemonicFor(ComparisonOp op) const;
 };
 
 #endif

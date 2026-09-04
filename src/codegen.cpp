@@ -51,6 +51,22 @@ std::string CodeGenerator::generateInstruction(const IRInstruction& instruction)
             }
             return "RETURN";
 
+        case IROpcode::COMPARE: {
+            std::string mnemonic = comparisonMnemonicFor(instruction.comparisonOp);
+            return mnemonic + " " + instruction.destination + ", " +
+                   operandToText(instruction.operandA) + ", " +
+                   operandToText(instruction.operandB);
+        }
+
+        case IROpcode::IF_START:
+            return "IF_START " + operandToText(instruction.operandA);
+
+        case IROpcode::ELSE:
+            return "ELSE";
+
+        case IROpcode::IF_END:
+            return "IF_END";
+
         default:
             throw std::runtime_error("Code generation error on line " +
                                      std::to_string(instruction.line) + ": unsupported IR opcode.");
@@ -86,5 +102,24 @@ std::string CodeGenerator::mnemonicFor(char operatorSymbol, int line) const {
         default:
             throw std::runtime_error("Code generation error on line " + std::to_string(line) +
                                      ": unsupported operator '" + operatorSymbol + "'.");
+    }
+}
+
+std::string CodeGenerator::comparisonMnemonicFor(ComparisonOp op) const {
+    switch (op) {
+        case ComparisonOp::Equal:
+            return "CMPEQ";
+        case ComparisonOp::NotEqual:
+            return "CMPNE";
+        case ComparisonOp::Less:
+            return "CMPLT";
+        case ComparisonOp::LessEqual:
+            return "CMPLE";
+        case ComparisonOp::Greater:
+            return "CMPGT";
+        case ComparisonOp::GreaterEqual:
+            return "CMPGE";
+        default:
+            throw std::runtime_error("Code generation error: unrecognized comparison operator.");
     }
 }

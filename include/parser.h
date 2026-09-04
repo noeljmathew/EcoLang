@@ -22,12 +22,18 @@ private:
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> declaration();
     std::unique_ptr<Statement> assignment();
+    std::unique_ptr<AssignmentStatement> assignmentWithoutSemicolon();
     std::unique_ptr<Statement> printfStatement();
     std::unique_ptr<Statement> returnStatement();
+    std::unique_ptr<Statement> ifStatement();
+    std::unique_ptr<Statement> whileStatement();
+    std::unique_ptr<Statement> forStatement();
 
     std::unique_ptr<Expression> expression();
     std::unique_ptr<Expression> term();
     std::unique_ptr<Expression> factor();
+    std::unique_ptr<ComparisonExpression> condition();
+    ComparisonOp comparisonOperator();
 
     bool check(TokenType type) const;
     bool match(TokenType type);

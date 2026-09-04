@@ -56,6 +56,10 @@ public:
     std::string name;
 };
 
+// Shared with ir.h - comparisons only ever need these six kinds, and
+// there is no reason for the AST and IR to each define their own copy.
+enum class ComparisonOp { Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual };
+
 class BinaryExpression : public Expression {
 public:
     BinaryExpression(std::unique_ptr<Expression> left, char operatorSymbol,
@@ -66,6 +70,22 @@ public:
 
     std::unique_ptr<Expression> left;
     char operatorSymbol;
+    std::unique_ptr<Expression> right;
+};
+
+// A single comparison - the only form a condition may take in this
+// phase (no &&/||, no composing comparisons with arithmetic). Kept
+// separate from BinaryExpression since operatorSymbol is a single char
+// and cannot represent two-character operators like <= or ==.
+class ComparisonExpression : public Expression {
+public:
+    ComparisonExpression(std::unique_ptr<Expression> left, ComparisonOp op,
+                         std::unique_ptr<Expression> right, int line)
+        : Expression(line), left(std::move(left)), op(op), right(std::move(right)) {
+    }
+
+    std::unique_ptr<Expression> left;
+    ComparisonOp op;
     std::unique_ptr<Expression> right;
 };
 
@@ -126,6 +146,53 @@ public:
     }
 
     std::unique_ptr<Expression> value;
+};
+
+// if (condition) { ... } [else ...]
+// elseBranch is nullptr (no else), a BlockStatement (else { ... }), or
+// another IfStatement (else if ...).
+class IfStatement : public Statement {
+public:
+    IfStatement(std::unique_ptr<ComparisonExpression> condition,
+               std::unique_ptr<BlockStatement> thenBranch, std::unique_ptr<Statement> elseBranch,
+               int line)
+        : Statement(line), condition(std::move(condition)), thenBranch(std::move(thenBranch)),
+          elseBranch(std::move(elseBranch)) {
+    }
+
+    std::unique_ptr<ComparisonExpression> condition;
+    std::unique_ptr<BlockStatement> thenBranch;
+    std::unique_ptr<Statement> elseBranch;
+};
+
+// while (condition) { ... }
+class WhileStatement : public Statement {
+public:
+    WhileStatement(std::unique_ptr<ComparisonExpression> condition,
+                   std::unique_ptr<BlockStatement> body, int line)
+        : Statement(line), condition(std::move(condition)), body(std::move(body)) {
+    }
+
+    std::unique_ptr<ComparisonExpression> condition;
+    std::unique_ptr<BlockStatement> body;
+};
+
+// for (init; condition; update) { ... }
+// init is a VariableDeclaration or an AssignmentStatement; update is
+// always an AssignmentStatement.
+class ForStatement : public Statement {
+public:
+    ForStatement(std::unique_ptr<Statement> init, std::unique_ptr<ComparisonExpression> condition,
+                std::unique_ptr<AssignmentStatement> update, std::unique_ptr<BlockStatement> body,
+                int line)
+        : Statement(line), init(std::move(init)), condition(std::move(condition)),
+          update(std::move(update)), body(std::move(body)) {
+    }
+
+    std::unique_ptr<Statement> init;
+    std::unique_ptr<ComparisonExpression> condition;
+    std::unique_ptr<AssignmentStatement> update;
+    std::unique_ptr<BlockStatement> body;
 };
 
 // int main() { ... } - the sole entry point in Phase 1. Not a Statement:

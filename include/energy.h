@@ -32,7 +32,7 @@ constexpr double kJoulesPerEnergyUnit = 1e-7;
 struct EnergyBreakdown {
     long long assignmentCount = 0;
     long long arithmeticCount = 0;
-    long long comparisonCount = 0;  // always 0 today - the IR has no comparison opcode yet
+    long long comparisonCount = 0;  // one per COMPARE instruction executed
     long long loopIterationCount = 0;
     long long printCount = 0;
 };

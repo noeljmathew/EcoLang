@@ -12,8 +12,19 @@ enum class IROpcode {
     PRINT,
     LOOP_START,
     LOOP_END,
-    RETURN
+    RETURN,
+    COMPARE,
+    IF_START,
+    ELSE,
+    IF_END
 };
+
+// No static loop-bound analysis in this phase: every while/for loop
+// compiles to LOOP_START(kAssumedLoopIterations)/LOOP_END regardless of
+// its real condition, exactly like a fixed-count repeat. Illustrative
+// placeholder, not a real bound analysis - styled like
+// kJoulesPerEnergyUnit in energy.h.
+constexpr int kAssumedLoopIterations = 10;
 
 enum class IROperandKind {
     IntConstant,
@@ -50,6 +61,12 @@ struct IRInstruction {
     // operandA/operandB exactly as before; PRINT does not use them.
     std::string formatString;
     std::vector<IROperand> operandList;
+
+    // Used only by COMPARE: which of the six comparisons operandA and
+    // operandB are being combined with (destination = operandA op
+    // operandB, a 0/1 value) - operatorSymbol is a single char and
+    // cannot represent <=, >=, ==, or !=.
+    ComparisonOp comparisonOp = ComparisonOp::Equal;
 };
 
 using IRProgram = std::vector<IRInstruction>;
@@ -68,12 +85,17 @@ private:
     void generateAssignment(const AssignmentStatement* statement, IRProgram& output);
     void generatePrintf(const PrintfStatement* statement, IRProgram& output);
     void generateReturn(const ReturnStatement* statement, IRProgram& output);
+    void generateIf(const IfStatement* statement, IRProgram& output);
+    void generateWhile(const WhileStatement* statement, IRProgram& output);
+    void generateFor(const ForStatement* statement, IRProgram& output);
     IROperand generateExpression(const Expression* expression, IRProgram& output);
+    IROperand generateComparison(const ComparisonExpression* condition, IRProgram& output);
 
     // Generates a fresh compiler-internal name ($t1, $t2, ...). The '$'
     // prefix can never collide with a user identifier, since identifiers
     // must start with a letter or underscore.
     std::string newTemp();
+    IROperand makeAssumedIterationCount() const;
 
     int tempCounter = 0;
 };

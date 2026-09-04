@@ -51,6 +51,15 @@ std::unique_ptr<Statement> Parser::statement() {
     if (match(TokenType::RETURN)) {
         return returnStatement();
     }
+    if (match(TokenType::IF)) {
+        return ifStatement();
+    }
+    if (match(TokenType::WHILE)) {
+        return whileStatement();
+    }
+    if (match(TokenType::FOR)) {
+        return forStatement();
+    }
     if (check(TokenType::LEFT_BRACE)) {
         return block();
     }
@@ -72,11 +81,18 @@ std::unique_ptr<Statement> Parser::declaration() {
 }
 
 std::unique_ptr<Statement> Parser::assignment() {
+    std::unique_ptr<AssignmentStatement> assignmentStatement = assignmentWithoutSemicolon();
+    consume(TokenType::SEMICOLON, "expected ';' after assignment.");
+    return assignmentStatement;
+}
+
+// Shared by assignment() (which adds the trailing ';') and for's update
+// clause, which is followed by ')' instead.
+std::unique_ptr<AssignmentStatement> Parser::assignmentWithoutSemicolon() {
     const Token& name = consume(TokenType::IDENTIFIER, "expected an identifier.");
     int line = name.line;
     consume(TokenType::EQUAL, "expected '=' after variable name.");
     std::unique_ptr<Expression> value = expression();
-    consume(TokenType::SEMICOLON, "expected ';' after assignment.");
 
     return std::make_unique<AssignmentStatement>(name.lexeme, std::move(value), line);
 }
@@ -111,6 +127,59 @@ std::unique_ptr<Statement> Parser::returnStatement() {
 
     consume(TokenType::SEMICOLON, "expected ';' after return statement.");
     return std::make_unique<ReturnStatement>(std::move(value), line);
+}
+
+std::unique_ptr<Statement> Parser::ifStatement() {
+    int line = previous().line;
+    consume(TokenType::LEFT_PAREN, "expected '(' after 'if'.");
+    std::unique_ptr<ComparisonExpression> ifCondition = condition();
+    consume(TokenType::RIGHT_PAREN, "expected ')' after if condition.");
+    std::unique_ptr<BlockStatement> thenBranch = block();
+
+    std::unique_ptr<Statement> elseBranch;
+    if (match(TokenType::ELSE)) {
+        if (match(TokenType::IF)) {
+            elseBranch = ifStatement();
+        } else {
+            elseBranch = block();
+        }
+    }
+
+    return std::make_unique<IfStatement>(std::move(ifCondition), std::move(thenBranch),
+                                         std::move(elseBranch), line);
+}
+
+std::unique_ptr<Statement> Parser::whileStatement() {
+    int line = previous().line;
+    consume(TokenType::LEFT_PAREN, "expected '(' after 'while'.");
+    std::unique_ptr<ComparisonExpression> whileCondition = condition();
+    consume(TokenType::RIGHT_PAREN, "expected ')' after while condition.");
+    std::unique_ptr<BlockStatement> body = block();
+
+    return std::make_unique<WhileStatement>(std::move(whileCondition), std::move(body), line);
+}
+
+std::unique_ptr<Statement> Parser::forStatement() {
+    int line = previous().line;
+    consume(TokenType::LEFT_PAREN, "expected '(' after 'for'.");
+
+    std::unique_ptr<Statement> init;
+    if (match(TokenType::INT)) {
+        init = declaration();
+    } else {
+        init = assignment();
+    }
+
+    std::unique_ptr<ComparisonExpression> forCondition = condition();
+    consume(TokenType::SEMICOLON, "expected ';' after for condition.");
+
+    std::unique_ptr<AssignmentStatement> update = assignmentWithoutSemicolon();
+    consume(TokenType::RIGHT_PAREN, "expected ')' after for clauses.");
+
+    std::unique_ptr<BlockStatement> body = block();
+
+    return std::make_unique<ForStatement>(std::move(init), std::move(forCondition),
+                                          std::move(update), std::move(body), line);
 }
 
 std::unique_ptr<Expression> Parser::expression() {
@@ -161,6 +230,38 @@ std::unique_ptr<Expression> Parser::factor() {
     }
 
     throw error(peek(), "expected an expression.");
+}
+
+std::unique_ptr<ComparisonExpression> Parser::condition() {
+    int line = peek().line;
+    std::unique_ptr<Expression> left = expression();
+    ComparisonOp op = comparisonOperator();
+    std::unique_ptr<Expression> right = expression();
+
+    return std::make_unique<ComparisonExpression>(std::move(left), op, std::move(right), line);
+}
+
+ComparisonOp Parser::comparisonOperator() {
+    if (match(TokenType::EQUAL_EQUAL)) {
+        return ComparisonOp::Equal;
+    }
+    if (match(TokenType::NOT_EQUAL)) {
+        return ComparisonOp::NotEqual;
+    }
+    if (match(TokenType::LESS_EQUAL)) {
+        return ComparisonOp::LessEqual;
+    }
+    if (match(TokenType::LESS)) {
+        return ComparisonOp::Less;
+    }
+    if (match(TokenType::GREATER_EQUAL)) {
+        return ComparisonOp::GreaterEqual;
+    }
+    if (match(TokenType::GREATER)) {
+        return ComparisonOp::Greater;
+    }
+
+    throw error(peek(), "expected a comparison operator.");
 }
 
 bool Parser::check(TokenType type) const {

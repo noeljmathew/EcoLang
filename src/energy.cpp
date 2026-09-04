@@ -59,6 +59,21 @@ EnergyReport analyzeEnergy(const IRProgram& program) {
                 // and report.cpp has no row to show one even if there were.
                 break;
 
+            case IROpcode::COMPARE:
+                breakdown.comparisonCount += multiplier;
+                break;
+
+            case IROpcode::IF_START:
+            case IROpcode::ELSE:
+            case IROpcode::IF_END:
+                // Structural markers only. Both branches' instructions sit
+                // one after another in this flat IR, so the linear scan
+                // counts both unconditionally just by walking past them -
+                // an intentional worst-case over-approximation, not a real
+                // control-flow simulation. No multiplier change here,
+                // unlike LOOP_START/LOOP_END.
+                break;
+
             case IROpcode::LOOP_START:
                 multiplierStack.push_back(multiplier);
                 multiplier *= instruction.operandA.intValue;

@@ -1,5 +1,6 @@
 #include "optimizer.h"
 
+#include <stdexcept>
 #include <unordered_set>
 #include <vector>
 
@@ -14,6 +15,34 @@ IROperand makeIntConstant(int value) {
 
 bool isIntConstantOf(const IROperand& operand, int value) {
     return operand.kind == IROperandKind::IntConstant && operand.intValue == value;
+}
+
+bool operandsEqual(const IROperand& a, const IROperand& b) {
+    if (a.kind != b.kind) {
+        return false;
+    }
+    if (a.kind == IROperandKind::IntConstant) {
+        return a.intValue == b.intValue;
+    }
+    return a.text == b.text;
+}
+
+// After a loop or if/else, we cannot assume that values changed inside
+// it still have their old values. We therefore keep a constant only
+// when its value is unchanged from before the region; otherwise we
+// forget it (this also correctly drops anything newly introduced inside
+// the region, since it never appears in "before").
+std::unordered_map<std::string, IROperand> keepUnchanged(
+    const std::unordered_map<std::string, IROperand>& before,
+    const std::unordered_map<std::string, IROperand>& after) {
+    std::unordered_map<std::string, IROperand> result;
+    for (const auto& entry : before) {
+        auto it = after.find(entry.first);
+        if (it != after.end() && operandsEqual(it->second, entry.second)) {
+            result.insert(entry);
+        }
+    }
+    return result;
 }
 
 }  // namespace
@@ -57,7 +86,7 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
         if (instruction.opcode == IROpcode::LOOP_END) {
             output.push_back(instruction);
             if (!savedStates.empty()) {
-                knownConstants = savedStates.back();
+                knownConstants = keepUnchanged(savedStates.back(), knownConstants);
                 savedStates.pop_back();
             }
             continue;
@@ -85,6 +114,57 @@ IRProgram Optimizer::foldAndPropagate(const IRProgram& input) {
                 instruction.operandA = resolveOperand(instruction.operandA, knownConstants);
             }
             output.push_back(instruction);
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::IF_START) {
+            instruction.operandA = resolveOperand(instruction.operandA, knownConstants);
+            savedStates.push_back(knownConstants);
+            output.push_back(instruction);
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::ELSE) {
+            output.push_back(instruction);
+            if (!savedStates.empty()) {
+                // Restore without popping - IF_END needs this same
+                // snapshot again once the else-branch is done.
+                knownConstants = savedStates.back();
+            }
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::IF_END) {
+            output.push_back(instruction);
+            if (!savedStates.empty()) {
+                knownConstants = keepUnchanged(savedStates.back(), knownConstants);
+                savedStates.pop_back();
+            }
+            continue;
+        }
+
+        if (instruction.opcode == IROpcode::COMPARE) {
+            IROperand left = resolveOperand(instruction.operandA, knownConstants);
+            IROperand right = resolveOperand(instruction.operandB, knownConstants);
+
+            if (left.kind == IROperandKind::IntConstant &&
+                right.kind == IROperandKind::IntConstant) {
+                int folded = foldComparison(instruction.comparisonOp, left.intValue, right.intValue);
+                IRInstruction store{};
+                store.opcode = IROpcode::STORE;
+                store.destination = instruction.destination;
+                store.operandA = makeIntConstant(folded);
+                store.line = instruction.line;
+                output.push_back(store);
+                recordIfConstant(store.destination, store.operandA, knownConstants);
+                stats.constantFoldingCount++;
+                continue;
+            }
+
+            instruction.operandA = left;
+            instruction.operandB = right;
+            output.push_back(instruction);
+            knownConstants.erase(instruction.destination);
             continue;
         }
 
@@ -152,8 +232,9 @@ IRProgram Optimizer::eliminateDeadTemporaries(const IRProgram& input) {
 
     IRProgram output;
     for (const IRInstruction& instruction : input) {
-        bool hasDestination =
-            instruction.opcode == IROpcode::STORE || instruction.opcode == IROpcode::BINARY_OP;
+        bool hasDestination = instruction.opcode == IROpcode::STORE ||
+                              instruction.opcode == IROpcode::BINARY_OP ||
+                              instruction.opcode == IROpcode::COMPARE;
         bool isTemp = instruction.destination.rfind("$t", 0) == 0;
         bool isUnused = usedNames.find(instruction.destination) == usedNames.end();
 
@@ -206,6 +287,25 @@ std::optional<int> Optimizer::foldArithmetic(char operatorSymbol, int left, int 
             return left / right;
         default:
             return std::nullopt;
+    }
+}
+
+int Optimizer::foldComparison(ComparisonOp op, int left, int right) const {
+    switch (op) {
+        case ComparisonOp::Equal:
+            return left == right ? 1 : 0;
+        case ComparisonOp::NotEqual:
+            return left != right ? 1 : 0;
+        case ComparisonOp::Less:
+            return left < right ? 1 : 0;
+        case ComparisonOp::LessEqual:
+            return left <= right ? 1 : 0;
+        case ComparisonOp::Greater:
+            return left > right ? 1 : 0;
+        case ComparisonOp::GreaterEqual:
+            return left >= right ? 1 : 0;
+        default:
+            throw std::runtime_error("Internal error: unrecognized comparison operator.");
     }
 }
 

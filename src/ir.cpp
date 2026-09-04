@@ -22,6 +22,13 @@ void IRGenerator::generateStatement(const Statement* statement, IRProgram& outpu
     } else if (const ReturnStatement* returnStatement =
                    dynamic_cast<const ReturnStatement*>(statement)) {
         generateReturn(returnStatement, output);
+    } else if (const IfStatement* ifStatement = dynamic_cast<const IfStatement*>(statement)) {
+        generateIf(ifStatement, output);
+    } else if (const WhileStatement* whileStatement =
+                   dynamic_cast<const WhileStatement*>(statement)) {
+        generateWhile(whileStatement, output);
+    } else if (const ForStatement* forStatement = dynamic_cast<const ForStatement*>(statement)) {
+        generateFor(forStatement, output);
     } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
         generateBlock(block, output);
     }
@@ -86,6 +93,87 @@ void IRGenerator::generateReturn(const ReturnStatement* statement, IRProgram& ou
     output.push_back(instruction);
 }
 
+void IRGenerator::generateIf(const IfStatement* statement, IRProgram& output) {
+    IROperand conditionValue = generateComparison(statement->condition.get(), output);
+
+    IRInstruction ifStart{};
+    ifStart.opcode = IROpcode::IF_START;
+    ifStart.operandA = conditionValue;
+    ifStart.line = statement->line;
+    output.push_back(ifStart);
+
+    generateBlock(statement->thenBranch.get(), output);
+
+    IRInstruction elseMarker{};
+    elseMarker.opcode = IROpcode::ELSE;
+    elseMarker.line = statement->line;
+    output.push_back(elseMarker);
+
+    if (statement->elseBranch != nullptr) {
+        generateStatement(statement->elseBranch.get(), output);
+    }
+
+    IRInstruction ifEnd{};
+    ifEnd.opcode = IROpcode::IF_END;
+    ifEnd.line = statement->line;
+    output.push_back(ifEnd);
+}
+
+void IRGenerator::generateWhile(const WhileStatement* statement, IRProgram& output) {
+    IRInstruction loopStart{};
+    loopStart.opcode = IROpcode::LOOP_START;
+    loopStart.operandA = makeAssumedIterationCount();
+    loopStart.line = statement->line;
+    output.push_back(loopStart);
+
+    generateBlock(statement->body.get(), output);
+
+    IRInstruction loopEnd{};
+    loopEnd.opcode = IROpcode::LOOP_END;
+    loopEnd.line = statement->line;
+    output.push_back(loopEnd);
+}
+
+void IRGenerator::generateFor(const ForStatement* statement, IRProgram& output) {
+    generateStatement(statement->init.get(), output);
+
+    IRInstruction loopStart{};
+    loopStart.opcode = IROpcode::LOOP_START;
+    loopStart.operandA = makeAssumedIterationCount();
+    loopStart.line = statement->line;
+    output.push_back(loopStart);
+
+    generateBlock(statement->body.get(), output);
+    generateAssignment(statement->update.get(), output);
+
+    IRInstruction loopEnd{};
+    loopEnd.opcode = IROpcode::LOOP_END;
+    loopEnd.line = statement->line;
+    output.push_back(loopEnd);
+}
+
+IROperand IRGenerator::generateComparison(const ComparisonExpression* condition,
+                                          IRProgram& output) {
+    IROperand left = generateExpression(condition->left.get(), output);
+    IROperand right = generateExpression(condition->right.get(), output);
+
+    std::string temp = newTemp();
+
+    IRInstruction instruction{};
+    instruction.opcode = IROpcode::COMPARE;
+    instruction.destination = temp;
+    instruction.comparisonOp = condition->op;
+    instruction.operandA = left;
+    instruction.operandB = right;
+    instruction.line = condition->line;
+    output.push_back(instruction);
+
+    IROperand result{};
+    result.kind = IROperandKind::Name;
+    result.text = temp;
+    return result;
+}
+
 IROperand IRGenerator::generateExpression(const Expression* expression, IRProgram& output) {
     if (const NumberExpression* number = dynamic_cast<const NumberExpression*>(expression)) {
         IROperand operand{};
@@ -132,4 +220,11 @@ IROperand IRGenerator::generateExpression(const Expression* expression, IRProgra
 std::string IRGenerator::newTemp() {
     ++tempCounter;
     return "$t" + std::to_string(tempCounter);
+}
+
+IROperand IRGenerator::makeAssumedIterationCount() const {
+    IROperand operand{};
+    operand.kind = IROperandKind::IntConstant;
+    operand.intValue = kAssumedLoopIterations;
+    return operand;
 }

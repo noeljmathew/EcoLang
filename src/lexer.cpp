@@ -74,7 +74,38 @@ void Lexer::scanToken() {
                 addToken(TokenType::SLASH);
             }
             break;
-        case '=': addToken(TokenType::EQUAL); break;
+        case '=':
+            if (peek() == '=') {
+                advance();
+                addToken(TokenType::EQUAL_EQUAL);
+            } else {
+                addToken(TokenType::EQUAL);
+            }
+            break;
+        case '!':
+            if (peek() == '=') {
+                advance();
+                addToken(TokenType::NOT_EQUAL);
+            } else {
+                throw error(tokenLine, "invalid character '!'.");
+            }
+            break;
+        case '<':
+            if (peek() == '=') {
+                advance();
+                addToken(TokenType::LESS_EQUAL);
+            } else {
+                addToken(TokenType::LESS);
+            }
+            break;
+        case '>':
+            if (peek() == '=') {
+                advance();
+                addToken(TokenType::GREATER_EQUAL);
+            } else {
+                addToken(TokenType::GREATER);
+            }
+            break;
         case '(': addToken(TokenType::LEFT_PAREN); break;
         case ')': addToken(TokenType::RIGHT_PAREN); break;
         case '{': addToken(TokenType::LEFT_BRACE); break;
@@ -109,6 +140,14 @@ void Lexer::identifier() {
         addToken(TokenType::PRINTF);
     } else if (text == "return") {
         addToken(TokenType::RETURN);
+    } else if (text == "if") {
+        addToken(TokenType::IF);
+    } else if (text == "else") {
+        addToken(TokenType::ELSE);
+    } else if (text == "while") {
+        addToken(TokenType::WHILE);
+    } else if (text == "for") {
+        addToken(TokenType::FOR);
     } else {
         addToken(TokenType::IDENTIFIER);
     }

@@ -42,6 +42,13 @@ void SemanticAnalyzer::analyzeStatement(const Statement* statement) {
     } else if (const ReturnStatement* returnStatement =
                    dynamic_cast<const ReturnStatement*>(statement)) {
         analyzeReturn(returnStatement);
+    } else if (const IfStatement* ifStatement = dynamic_cast<const IfStatement*>(statement)) {
+        analyzeIf(ifStatement);
+    } else if (const WhileStatement* whileStatement =
+                   dynamic_cast<const WhileStatement*>(statement)) {
+        analyzeWhile(whileStatement);
+    } else if (const ForStatement* forStatement = dynamic_cast<const ForStatement*>(statement)) {
+        analyzeFor(forStatement);
     } else if (const BlockStatement* block = dynamic_cast<const BlockStatement*>(statement)) {
         analyzeBlock(block);
     }
@@ -76,6 +83,32 @@ void SemanticAnalyzer::analyzeReturn(const ReturnStatement* returnStatement) {
     if (returnStatement->value != nullptr) {
         typeOfExpression(returnStatement->value.get());
     }
+}
+
+void SemanticAnalyzer::analyzeIf(const IfStatement* ifStatement) {
+    checkCondition(ifStatement->condition.get());
+    analyzeBlock(ifStatement->thenBranch.get());
+
+    if (ifStatement->elseBranch != nullptr) {
+        analyzeStatement(ifStatement->elseBranch.get());
+    }
+}
+
+void SemanticAnalyzer::analyzeWhile(const WhileStatement* whileStatement) {
+    checkCondition(whileStatement->condition.get());
+    analyzeBlock(whileStatement->body.get());
+}
+
+void SemanticAnalyzer::analyzeFor(const ForStatement* forStatement) {
+    analyzeStatement(forStatement->init.get());
+    checkCondition(forStatement->condition.get());
+    analyzeAssignment(forStatement->update.get());
+    analyzeBlock(forStatement->body.get());
+}
+
+void SemanticAnalyzer::checkCondition(const ComparisonExpression* condition) {
+    typeOfExpression(condition->left.get());
+    typeOfExpression(condition->right.get());
 }
 
 ValueType SemanticAnalyzer::typeOfExpression(const Expression* expression) {
