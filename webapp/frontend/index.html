@@ -547,29 +547,8 @@
     line-height: 1.6;
   }
 
-  /* ---- AST panel: independent, display-only visualization ---- */
+  /* ---- AST panel ---- */
   #astPanel { border-top: 1px solid var(--border); }
-
-  .ast-disclaimer {
-    margin: 0 0 10px;
-    font-size: 11px;
-    font-style: italic;
-    color: var(--text-dim);
-  }
-
-  /* Reuses the same red family as the error box (no new accent color) -
-     a parity disagreement is a caution signal, closer to error semantics
-     than to success/energy or interactive state. */
-  .ast-parity-notice {
-    margin: 0 0 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--red-border);
-    background: var(--red-bg);
-    color: #ffb4ae;
-    font-size: 12px;
-    line-height: 1.5;
-    border-radius: 3px;
-  }
 
   .ast-tree, .ast-error {
     font-family: var(--font-mono);
@@ -627,7 +606,6 @@
     <div class="about-body">
       <p>EcoLang is a small, hand-written compiler for a restricted subset of C, built in C++17 as a Compiler Design course project — not a full C compiler. It supports int/void functions with parameters, declarations, assignment, arithmetic, printf, return, if/else, while, for, comparisons, and function calls including recursion. It was migrated in three phases from an original toy language (let/print/repeat...end) to this C-like subset: first the basic statement forms, then control flow and comparisons, then functions and recursion.</p>
       <p>Every optimized program is given an estimated energy cost, so the compiler can report not just whether a program compiles but roughly how expensive it is — and show that optimizations like constant folding and dead-code elimination measurably reduce that estimate. This cost model is illustrative, not a hardware measurement: loop iterations and recursion depth use fixed assumed counts rather than real analysis, if/else counts both branches as if they always run, and the Joules figure comes from an illustrative scaling constant chosen only to make the number human-readable.</p>
-      <p>The AST tab on this page is produced by a separate, independent parser built only for visualization, not the compiler's real lexer/parser — the panel itself flags it when the two disagree.</p>
     </div>
   </details>
 
@@ -756,8 +734,6 @@ int main() {
 
         <div id="astPanel" class="panel tab-panel" hidden>
           <h2 class="section-title">AST</h2>
-          <p class="ast-disclaimer">Independent visualization parser — not the actual compiler</p>
-          <div id="astParityNotice" class="ast-parity-notice" hidden></div>
           <div id="astTree" class="ast-tree" hidden></div>
           <div id="astError" class="ast-error" hidden></div>
         </div>
@@ -793,12 +769,8 @@ int main() {
   const reductionBadge = document.getElementById("reductionBadge");
   const reductionBarAfter = document.getElementById("reductionBarAfter");
 
-  // --- New in this pass: elements for the AST visualization panel. This
-  // panel is independent of #results/#errorPanel - it's driven by
-  // data.ast/data.astError/data.astParityWarning, which the backend now
-  // includes on both success and failure responses.
+  // Elements for the AST visualization panel, driven by data.ast.
   const astPanel = document.getElementById("astPanel");
-  const astParityNotice = document.getElementById("astParityNotice");
   const astTreeEl = document.getElementById("astTree");
   const astErrorEl = document.getElementById("astError");
 
@@ -1145,11 +1117,11 @@ int main() {
     });
   }
 
-  // New: everything below builds the AST panel from data.ast (a plain JSON
-  // tree the backend's independent Python parser produces - see
-  // webapp/backend/ast_parser.py). Purely a display concern: reads fields
-  // already present on the /compile response, does not fetch anything or
-  // change what compile() sends/receives.
+  // Everything below builds the AST panel from data.ast - a plain JSON
+  // tree straight from the real compiler's own parser (dumpAst in
+  // src/dump.cpp), forwarded through app.py unchanged. Purely a display
+  // concern: reads fields already present on the /compile response, does
+  // not fetch anything or change what compile() sends/receives.
   //
   // Rendering happens in two stages:
   //   1. Convert the raw AST into a "display tree" of {label, line, children}
@@ -1399,14 +1371,6 @@ int main() {
   }
 
   function renderAstPanel(data) {
-    if (data.astParityWarning) {
-      astParityNotice.textContent = data.astParityMessage ||
-        "This AST may not reflect the real compiler's output - the two parsers disagreed on this program.";
-      astParityNotice.hidden = false;
-    } else {
-      astParityNotice.hidden = true;
-    }
-
     if (data.ast) {
       renderAstTree(astTreeEl, data.ast);
       astTreeEl.hidden = false;
@@ -1414,7 +1378,7 @@ int main() {
     } else {
       astTreeEl.innerHTML = "";
       astTreeEl.hidden = true;
-      astErrorEl.textContent = data.astError || "The independent parser could not produce an AST for this program.";
+      astErrorEl.textContent = "No AST is available for this program.";
       astErrorEl.hidden = false;
     }
 

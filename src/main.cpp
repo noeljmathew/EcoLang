@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "codegen.h"
+#include "dump.h"
 #include "energy.h"
 #include "ir.h"
 #include "lexer.h"
@@ -38,6 +39,16 @@ int main(int argc, char** argv) {
         Parser parser(tokens);
         unique_ptr<Program> program = parser.parse();
 
+        // Real token-stream and AST output, straight off the lexer's
+        // already-produced tokens and the parser's already-produced tree -
+        // no new parsing/analysis logic, same as every other dump in this
+        // file. Computed here (right after lexing/parsing succeed) but
+        // printed below in the same batched cout block as everything else,
+        // so - like every other section - they only ever appear on a fully
+        // successful compile, never a partial one.
+        string tokenDump = dumpTokens(tokens);
+        string astDump = dumpAst(*program);
+
         SemanticAnalyzer analyzer;
         analyzer.analyze(*program);
 
@@ -54,6 +65,7 @@ int main(int argc, char** argv) {
         EnergyReport energyReport = analyzeEnergy(optimizedIr);
 
         CodeGenerator codeGenerator;
+        string rawTargetCode = codeGenerator.generate(ir);
         string targetCode = codeGenerator.generate(optimizedIr);
 
         ReportGenerator reportGenerator;
@@ -62,6 +74,14 @@ int main(int argc, char** argv) {
         cout << "========================================\n";
         cout << "           EcoLang Compiler\n";
         cout << "========================================\n\n";
+
+        cout << "[Tokens]\n";
+        cout << "-----------------\n";
+        cout << tokenDump << '\n';
+
+        cout << "[AST]\n";
+        cout << "-----------------\n";
+        cout << astDump << '\n';
 
         cout << "[Optimization]\n";
         cout << "-----------------\n";
@@ -81,6 +101,10 @@ int main(int argc, char** argv) {
         cout << left << setw(27) << "Dead Temporary Elimination"
              << ": " << optimizationStats.deadTemporaryEliminationCount << '\n';
         cout << '\n';
+
+        cout << "[IR Before Optimization]\n";
+        cout << "-----------------\n";
+        cout << rawTargetCode << '\n';
 
         cout << "[Code Generation]\n";
         cout << "-----------------\n";

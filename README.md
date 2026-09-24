@@ -252,7 +252,7 @@ With `g++` directly (no external dependencies):
 g++ -std=c++17 -Wall -Wextra -pedantic -Iinclude \
     src/main.cpp src/lexer.cpp src/parser.cpp src/semantic.cpp \
     src/ir.cpp src/energy.cpp src/optimizer.cpp src/codegen.cpp \
-    src/report.cpp -o build/ecolang
+    src/report.cpp src/dump.cpp -o build/ecolang
 ```
 
 Or with CMake, if you have it installed:

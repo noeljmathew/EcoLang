@@ -14,6 +14,7 @@ add_executable(ecolang
     src/energy.cpp
     src/codegen.cpp
     src/report.cpp
+    src/dump.cpp
 )
 
 target_include_directories(ecolang PRIVATE include)
