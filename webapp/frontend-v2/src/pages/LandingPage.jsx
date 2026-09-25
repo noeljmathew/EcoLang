@@ -45,10 +45,10 @@ export default function LandingPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <h1 className="font-display text-5xl leading-[1.1] font-semibold tracking-tight text-ink sm:text-6xl dark:text-ink-dark">
+        <h1 className="font-display text-4xl leading-[1.1] font-semibold tracking-tight text-ink sm:text-5xl dark:text-ink-dark">
           A compiler that knows what your code costs.
         </h1>
-        <p className="mt-6 max-w-xl text-lg text-ink-soft dark:text-ink-dark-soft">
+        <p className="mt-4 max-w-xl text-lg text-ink-soft dark:text-ink-dark-soft">
           EcoLang is a small, hand-written, energy-aware compiler for a restricted
           subset of C. It compiles source text all the way through lexing, parsing,
           semantic analysis, IR generation, and optimization — then estimates how
@@ -57,7 +57,7 @@ export default function LandingPage() {
         </p>
         <Link
           to="/compile"
-          className="mt-8 inline-flex items-center gap-2 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-soft-lg dark:bg-accent-dark dark:text-paper-dark dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg dark:hover:brightness-110"
+          className="mt-6 inline-flex items-center gap-2 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-soft-lg dark:bg-accent-dark dark:text-paper-dark dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg dark:hover:brightness-110"
         >
           Try the compiler
           <span aria-hidden="true">→</span>
@@ -68,7 +68,7 @@ export default function LandingPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-        className="mt-20"
+        className="mt-12"
       >
         <h2 className="font-display text-sm font-semibold tracking-widest text-ink-soft uppercase dark:text-ink-dark-soft">
           The pipeline
@@ -82,13 +82,13 @@ export default function LandingPage() {
         {/* The spectrum swept as one continuous line behind the cards -
             reads as a coherent progression regardless of how the cards
             themselves wrap at a given width. */}
-        <div className="relative mt-10">
+        <div className="relative mt-6">
           <div
             aria-hidden="true"
-            className="absolute top-6 right-0 left-0 hidden h-px opacity-40 sm:block dark:opacity-50"
+            className="absolute top-7 right-0 left-0 hidden h-px opacity-40 sm:block dark:opacity-50"
             style={{ background: SPECTRUM_GRADIENT }}
           />
-          <div className="relative flex flex-wrap gap-4">
+          <div className="relative flex flex-wrap gap-3 lg:flex-nowrap">
             {PIPELINE_STAGES.map((stage, i) => {
               const color = STAGE_COLORS[i];
               return (
@@ -97,12 +97,12 @@ export default function LandingPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.25 + i * 0.06, ease: "easeOut" }}
-                  className="group w-40 rounded-xl border border-accent-soft-border bg-paper-raised p-4 shadow-soft transition-all duration-200 hover:-translate-y-1 hover:shadow-soft-lg dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg"
+                  className="group w-36 rounded-xl border border-accent-soft-border bg-paper-raised p-3 lg:w-auto lg:min-w-0 lg:flex-1 shadow-soft transition-all duration-200 hover:-translate-y-1 hover:shadow-soft-lg dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg"
                 >
-                  <div className={"flex h-9 w-9 items-center justify-center rounded-lg border " + color.iconChip}>
-                    <StageIcon index={i} className={"h-5 w-5 " + color.iconText} />
+                  <div className={"flex h-8 w-8 items-center justify-center rounded-lg border " + color.iconChip}>
+                    <StageIcon index={i} className={"h-4 w-4 " + color.iconText} />
                   </div>
-                  <div className={"mt-3 text-[11px] font-medium " + color.iconText}>
+                  <div className={"mt-2 text-[11px] font-medium " + color.iconText}>
                     {String(i).padStart(2, "0")}
                   </div>
                   <div className="font-display mt-0.5 text-base font-semibold text-ink dark:text-ink-dark">
@@ -122,7 +122,7 @@ export default function LandingPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.6 }}
-        className="mt-16 max-w-2xl border-t border-accent-soft-border pt-8 text-sm text-ink-soft dark:border-accent-dark-soft dark:text-ink-dark-soft"
+        className="mt-10 max-w-2xl border-t border-accent-soft-border pt-6 text-sm text-ink-soft dark:border-accent-dark-soft dark:text-ink-dark-soft"
       >
         <p>
           The language supports <code className="font-mono text-ink dark:text-ink-dark">int</code>/

@@ -11,9 +11,9 @@ export default function PageHeading({ title, description }) {
   const badge = stageBadge(location.pathname);
 
   return (
-    <div className="mb-10">
+    <div className="mb-6">
       {badge && (
-        <span className={"mb-3 inline-block rounded-full border px-3 py-1 text-xs font-medium tracking-wide uppercase " + badge.color.badge}>
+        <span className={"mb-2 inline-block rounded-full border px-3 py-1 text-xs font-medium tracking-wide uppercase " + badge.color.badge}>
           Stage {badge.index} · {badge.label}
         </span>
       )}
@@ -21,7 +21,7 @@ export default function PageHeading({ title, description }) {
         {title}
       </h1>
       {description && (
-        <p className="mt-3 max-w-2xl text-base text-ink-soft dark:text-ink-dark-soft">
+        <p className="mt-2 max-w-2xl text-base text-ink-soft dark:text-ink-dark-soft">
           {description}
         </p>
       )}

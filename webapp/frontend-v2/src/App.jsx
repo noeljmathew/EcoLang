@@ -27,7 +27,7 @@ export default function App() {
     <div className="flex min-h-screen bg-paper text-ink dark:bg-paper-dark dark:text-ink-dark">
       <PageWash />
       <NavBar />
-      <main className="flex-1 overflow-x-hidden px-10 py-10 md:px-16">
+      <main className="flex-1 overflow-x-hidden px-6 py-6 md:px-10">
         <div className="mx-auto max-w-5xl">
           <AnimatePresence mode="wait">
             <Routes location={location} key={location.pathname}>

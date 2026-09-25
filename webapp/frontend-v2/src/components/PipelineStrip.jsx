@@ -33,7 +33,7 @@ export default function PipelineStrip() {
   }
 
   return (
-    <div className="mb-8 flex flex-wrap items-center gap-x-1 gap-y-2 rounded-xl border border-accent-soft-border bg-paper-raised px-4 py-3 text-xs shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark">
+    <div className="mb-5 flex flex-wrap items-center gap-x-1 gap-y-2 rounded-xl border border-accent-soft-border bg-paper-raised px-4 py-3 text-xs shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark">
       {PIPELINE_STAGES.map((label, i) => {
         const state = stageState(i, failedIndex);
         return (

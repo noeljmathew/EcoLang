@@ -132,7 +132,7 @@ export default function CompilePage() {
         spellCheck={false}
         value={source}
         onChange={(event) => setSource(event.target.value)}
-        className="h-80 w-full resize-y rounded-xl border border-accent-soft-border bg-paper-raised p-4 font-mono text-[13px] leading-6 text-ink shadow-soft focus:border-accent focus:outline-none dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:text-ink-dark dark:shadow-soft-dark dark:focus:border-accent-dark"
+        className="h-[clamp(280px,55vh,600px)] w-full resize-y rounded-xl border border-accent-soft-border bg-paper-raised p-4 font-mono text-[13px] leading-6 text-ink shadow-soft focus:border-accent focus:outline-none dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:text-ink-dark dark:shadow-soft-dark dark:focus:border-accent-dark"
       />
 
       <div className="mt-4 flex items-center gap-3">

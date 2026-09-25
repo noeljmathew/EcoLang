@@ -25,7 +25,7 @@ export default function WaterTeaser({ energy, energyBefore }) {
     <Link
       to="/water"
       className={
-        "mt-10 flex items-center justify-between rounded-xl border p-6 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg " +
+        "mt-8 flex items-center justify-between rounded-xl border p-5 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg dark:shadow-soft-dark dark:hover:shadow-soft-dark-lg " +
         ENERGY_STAGE.iconChip
       }
     >
