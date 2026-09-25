@@ -1,5 +1,8 @@
+import { motion } from "framer-motion";
 import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
+import PageHeading from "../components/PageHeading";
+import WaterTeaser from "../components/WaterTeaser";
 
 // Ported from the old index.html's Energy Report tab: headline stats,
 // the five per-category operation-count bars (scaled to the largest of
@@ -10,11 +13,12 @@ const ENERGY_BAR_FIELDS = ["Assignments", "Arithmetic Ops", "Comparisons", "Loop
 export default function EnergyPage() {
   const { lastResult } = useCompile();
   const energy = lastResult?.energy;
+  const energyBefore = lastResult?.energyBefore;
 
   if (!energy) {
     return (
       <section>
-        <h1>Energy</h1>
+        <PageHeading title="Energy Report" description="Estimated energy cost, from the real Georgiou et al. Cortex-M0 hardware model." />
         <EmptyState />
       </section>
     );
@@ -28,41 +32,54 @@ export default function EnergyPage() {
 
   return (
     <section>
-      <h1>Energy</h1>
+      <PageHeading title="Energy Report" description="Estimated energy cost, from the real Georgiou et al. Cortex-M0 hardware model." />
 
-      <div className="headline-stats">
-        <div className="stat stat--energy">
-          <div className="label">Estimated Energy</div>
-          <div className="value">{energy["Estimated Energy"] ?? "-"}</div>
+      <div className="mb-8 flex flex-wrap gap-10">
+        <div>
+          <div className="text-xs font-medium tracking-wide text-ink-soft uppercase dark:text-ink-dark-soft">
+            Estimated Energy
+          </div>
+          <div className="font-display mt-1 text-3xl font-semibold text-stage-emerald dark:text-stage-emerald-dark">
+            {energy["Estimated Energy"] ?? "-"}
+          </div>
         </div>
-        <div className="stat">
-          <div className="label">Time Complexity</div>
-          <div className="value">{energy["Time Complexity"] ?? "-"}</div>
+        <div>
+          <div className="text-xs font-medium tracking-wide text-ink-soft uppercase dark:text-ink-dark-soft">
+            Time Complexity
+          </div>
+          <div className="font-display mt-1 text-3xl font-semibold text-ink dark:text-ink-dark">
+            {energy["Time Complexity"] ?? "-"}
+          </div>
         </div>
       </div>
 
-      <div className="energy-bars">
+      <div className="mb-8 flex flex-col gap-3">
         {ENERGY_BAR_FIELDS.map((key, i) => (
-          <div className="energy-bar-row" key={key}>
-            <span className="energy-bar-label">{key}</span>
-            <div className="energy-bar-track">
-              <div className="energy-bar-fill" style={{ width: (barValues[i] / barMax) * 100 + "%" }} />
+          <div key={key} className="grid grid-cols-[140px_1fr_64px] items-center gap-3 text-sm">
+            <span className="text-ink-soft dark:text-ink-dark-soft">{key}</span>
+            <div className="h-2 overflow-hidden rounded-full bg-stage-emerald/12 dark:bg-stage-emerald-dark/15">
+              <motion.div
+                className="h-full rounded-full bg-stage-emerald dark:bg-stage-emerald-dark"
+                initial={{ width: 0 }}
+                animate={{ width: (barValues[i] / barMax) * 100 + "%" }}
+                transition={{ duration: 0.6, delay: i * 0.08, ease: "easeOut" }}
+              />
             </div>
-            <span className="energy-bar-value">{barValues[i]}</span>
+            <span className="text-right font-mono text-ink dark:text-ink-dark">{barValues[i]}</span>
           </div>
         ))}
       </div>
 
-      <table>
-        <tbody>
-          {tableEntries.map(([key, value]) => (
-            <tr key={key}>
-              <th>{key}</th>
-              <td>{value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="divide-y divide-accent-soft-border rounded-xl border border-accent-soft-border shadow-soft dark:divide-accent-dark-soft dark:border-accent-dark-soft dark:shadow-soft-dark">
+        {tableEntries.map(([key, value]) => (
+          <div key={key} className="flex items-center justify-between px-5 py-2.5 text-sm">
+            <span className="text-ink-soft dark:text-ink-dark-soft">{key}</span>
+            <span className="font-mono text-ink dark:text-ink-dark">{value}</span>
+          </div>
+        ))}
+      </div>
+
+      <WaterTeaser energy={energy} energyBefore={energyBefore} />
     </section>
   );
 }

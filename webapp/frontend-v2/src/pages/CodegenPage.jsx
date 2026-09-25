@@ -1,5 +1,6 @@
 import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
+import PageHeading from "../components/PageHeading";
 
 // Ported as-is from the old index.html's Code Generation tab: the
 // optimized program's pseudo-assembly, shown plainly.
@@ -7,19 +8,16 @@ export default function CodegenPage() {
   const { lastResult } = useCompile();
   const codegen = lastResult?.codegen;
 
-  if (codegen === undefined) {
-    return (
-      <section>
-        <h1>Code Generation</h1>
-        <EmptyState />
-      </section>
-    );
-  }
-
   return (
     <section>
-      <h1>Code Generation</h1>
-      <pre>{codegen}</pre>
+      <PageHeading title="Code Generation" description="The optimized IR, rendered as readable pseudo-assembly." />
+      {codegen === undefined ? (
+        <EmptyState />
+      ) : (
+        <pre className="overflow-x-auto rounded-xl border border-accent-soft-border bg-paper-raised p-5 font-mono text-[13px] leading-6 whitespace-pre text-ink shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:text-ink-dark dark:shadow-soft-dark">
+          {codegen}
+        </pre>
+      )}
     </section>
   );
 }

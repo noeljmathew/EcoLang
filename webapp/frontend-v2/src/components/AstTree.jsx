@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 // Ported as-is from the old index.html's AST panel (stage 1: raw AST ->
 // "display tree" of {label, line, children} nodes). Framework-agnostic
@@ -195,23 +196,39 @@ function programToDisplay(program) {
 // (click a label with children to collapse/expand it, showing " ..."
 // while collapsed) is identical.
 
-function TreeNode({ node, nodeId, prefix, isLast, isRoot, collapsed, onToggle }) {
+function TreeNode({ node, nodeId, prefix, isLast, isRoot, collapsed, onToggle, siblingIndex }) {
   const hasChildren = !!(node.children && node.children.length);
   const isCollapsed = collapsed.has(nodeId);
   const childPrefix = isRoot ? "" : prefix + (isLast ? "    " : "│   ");
+  // A small stagger by sibling position (not global order) - deep trees
+  // still finish animating quickly since each level restarts the count,
+  // rather than the whole tree animating in strict top-to-bottom order.
+  const delay = Math.min(siblingIndex * 0.035, 0.3);
 
   return (
-    <div className="ast-node" title={node.line !== null && node.line !== undefined ? "line " + node.line : undefined}>
-      <span className="ast-connector">{isRoot ? "" : prefix + (isLast ? "└── " : "├── ")}</span>
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.22, delay, ease: "easeOut" }}
+      className="whitespace-pre font-mono text-[13px] leading-6"
+      title={node.line !== null && node.line !== undefined ? "line " + node.line : undefined}
+    >
+      <span className="text-ink-soft/60 dark:text-ink-dark-soft/50">
+        {isRoot ? "" : prefix + (isLast ? "└── " : "├── ")}
+      </span>
       <span
-        className={"ast-label" + (hasChildren ? " ast-label--toggle" : "")}
+        className={
+          hasChildren
+            ? "cursor-pointer text-ink transition-colors hover:text-stage-rose dark:text-ink-dark dark:hover:text-stage-rose-dark"
+            : "text-ink dark:text-ink-dark"
+        }
         onClick={hasChildren ? () => onToggle(nodeId) : undefined}
       >
         {node.label}
       </span>
-      {hasChildren && isCollapsed && <span className="ast-ellipsis"> ...</span>}
+      {hasChildren && isCollapsed && <span className="text-ink-soft italic dark:text-ink-dark-soft"> ...</span>}
       {hasChildren && !isCollapsed && (
-        <div className="ast-subtree">
+        <div>
           {node.children.map((child, index) => (
             <TreeNode
               key={index}
@@ -222,11 +239,12 @@ function TreeNode({ node, nodeId, prefix, isLast, isRoot, collapsed, onToggle })
               isRoot={false}
               collapsed={collapsed}
               onToggle={onToggle}
+              siblingIndex={index}
             />
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -249,8 +267,17 @@ export default function AstTree({ ast }) {
 
   const tree = programToDisplay(ast);
   return (
-    <div className="ast-tree">
-      <TreeNode node={tree} nodeId="root" prefix="" isLast isRoot collapsed={collapsed} onToggle={toggle} />
+    <div className="overflow-x-auto rounded-xl border border-accent-soft-border bg-paper-raised p-5 shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark">
+      <TreeNode
+        node={tree}
+        nodeId="root"
+        prefix=""
+        isLast
+        isRoot
+        collapsed={collapsed}
+        onToggle={toggle}
+        siblingIndex={0}
+      />
     </div>
   );
 }
