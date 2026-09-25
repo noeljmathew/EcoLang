@@ -64,12 +64,23 @@ int main(int argc, char** argv) {
 
         EnergyReport energyReport = analyzeEnergy(optimizedIr);
 
+        // analyzeEnergy() accepts any IRProgram (see its doc comment in
+        // energy.h) - calling it a second time on the raw, pre-optimization
+        // IR (already computed above for [IR Before Optimization]) costs
+        // nothing beyond the call itself and needs no changes to
+        // energy.h/energy.cpp. This is what makes a real, apples-to-apples
+        // before/after energy comparison possible: both totals come from
+        // the exact same hardware-weighted cost model, just applied to IR
+        // before and after the optimizer ran.
+        EnergyReport energyReportBefore = analyzeEnergy(ir);
+
         CodeGenerator codeGenerator;
         string rawTargetCode = codeGenerator.generate(ir);
         string targetCode = codeGenerator.generate(optimizedIr);
 
         ReportGenerator reportGenerator;
         string energyReportText = reportGenerator.generate(energyReport);
+        string energyReportBeforeText = reportGenerator.generate(energyReportBefore);
 
         cout << "========================================\n";
         cout << "           EcoLang Compiler\n";
@@ -109,6 +120,11 @@ int main(int argc, char** argv) {
         cout << "[Code Generation]\n";
         cout << "-----------------\n";
         cout << targetCode << '\n';
+
+        cout << "[Energy Report Before Optimization]\n";
+        cout << "----------------\n";
+        cout << energyReportBeforeText;
+        cout << '\n';
 
         cout << "[Energy Report]\n";
         cout << "----------------\n";

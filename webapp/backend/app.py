@@ -95,19 +95,21 @@ def parse_ast_block(block):
 
 def parse_compiler_stdout(stdout):
     """Split the compiler's stdout into the [Tokens], [AST],
-    [Optimization], [IR Before Optimization], [Code Generation], and
-    [Energy Report] sections it actually prints, in that order, and parse
-    each one. Every section's block runs up to whichever later marker
-    appears next in stdout, skipping over any marker that isn't present -
-    the same "missing sections don't block later ones" behavior this
-    function always had, now generalized instead of hand-chained per pair
-    of markers now that there are six sections instead of four."""
+    [Optimization], [IR Before Optimization], [Code Generation],
+    [Energy Report Before Optimization], and [Energy Report] sections it
+    actually prints, in that order, and parse each one. Every section's
+    block runs up to whichever later marker appears next in stdout,
+    skipping over any marker that isn't present - the same "missing
+    sections don't block later ones" behavior this function always had,
+    generalized instead of hand-chained per pair of markers now that
+    there are seven sections instead of four."""
     markers = [
         "[Tokens]",
         "[AST]",
         "[Optimization]",
         "[IR Before Optimization]",
         "[Code Generation]",
+        "[Energy Report Before Optimization]",
         "[Energy Report]",
     ]
     positions = [stdout.find(marker) for marker in markers]
@@ -128,6 +130,7 @@ def parse_compiler_stdout(stdout):
         "optimization": parse_key_value_lines(blocks["[Optimization]"]),
         "irBefore": strip_section_underline(blocks["[IR Before Optimization]"]),
         "codegen": strip_section_underline(blocks["[Code Generation]"]),
+        "energyBefore": parse_key_value_lines(blocks["[Energy Report Before Optimization]"]),
         "energy": parse_key_value_lines(blocks["[Energy Report]"]),
     }
 
@@ -169,6 +172,7 @@ def compile_source():
             "ast": parsed["ast"],
             "optimization": parsed["optimization"],
             "energy": parsed["energy"],
+            "energyBefore": parsed["energyBefore"],
             "codegen": parsed["codegen"],
             "irBefore": parsed["irBefore"],
         }

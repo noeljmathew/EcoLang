@@ -41,10 +41,11 @@ std::string ReportGenerator::generate(const EnergyReport& report) {
 
     writeRow(out, "Total Energy Units", std::to_string(report.totalEnergyUnits));
 
-    // Fixed to 7 decimal places so the Joules figure - which comes from
-    // multiplying by the illustrative 1e-7 kJoulesPerEnergyUnit constant
-    // in energy.h - reliably prints as a plain decimal (e.g. 0.0001218)
-    // instead of switching to scientific notation.
+    // Fixed to 7 decimal places so the Joules figure - totalEnergyUnits,
+    // which is in nanojoules (Georgiou et al. Cortex-M0 coefficients in
+    // energy.h), times 1e-9 for nJ -> J in energy.cpp - reliably prints as
+    // a plain decimal (e.g. 0.0000018) instead of switching to scientific
+    // notation.
     std::ostringstream joules;
     joules << std::fixed << std::setprecision(7) << report.estimatedJoules << " J";
     writeRow(out, "Estimated Energy", joules.str());
