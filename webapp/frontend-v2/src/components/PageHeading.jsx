@@ -1,30 +1,32 @@
 import { useLocation } from "react-router-dom";
 import { stageBadge } from "../stages";
+import { Badge } from "./ui/badge";
+import { cn } from "../lib/utils";
 
-// Shared heading block for every stage page: the subtle "STAGE N ·
-// LABEL" tag the design brief asks for, plus the serif display title
-// and an optional one-line description. Looks up its own badge from
-// the current route so pages don't each have to pass stage props by
-// hand and risk drifting from PIPELINE_STAGES.
-export default function PageHeading({ title, description }) {
+// Compact header shared by every page: an optional stage badge (looked
+// up from the route), the title, and a one-line description. `badge`
+// overrides the route lookup (used by the Water page). `actions` render
+// on the right.
+export default function PageHeading({ title, description, badge, actions }) {
   const location = useLocation();
-  const badge = stageBadge(location.pathname);
+  const stage = stageBadge(location.pathname);
 
   return (
-    <div className="mb-6">
-      {badge && (
-        <span className={"mb-2 inline-block rounded-full border px-3 py-1 text-xs font-medium tracking-wide uppercase " + badge.color.badge}>
-          Stage {badge.index} · {badge.label}
-        </span>
-      )}
-      <h1 className="font-display text-4xl font-semibold tracking-tight text-ink dark:text-ink-dark">
-        {title}
-      </h1>
-      {description && (
-        <p className="mt-2 max-w-2xl text-base text-ink-soft dark:text-ink-dark-soft">
-          {description}
-        </p>
-      )}
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-3 md:px-6">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {stage && (
+            <Badge className={stage.color.badge}>
+              <span className={cn("h-1.5 w-1.5 rounded-full", stage.color.dot)} />
+              Stage {stage.index} · {stage.label}
+            </Badge>
+          )}
+          {badge}
+          <h1 className="text-[20px] leading-7 font-semibold tracking-tight text-fg">{title}</h1>
+        </div>
+        {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Button } from "./ui/button";
+import { PanelHeader } from "./Panel";
 
 // Originally written for the first single-page frontend's AST panel,
 // since removed. Stage 1: raw AST -> "display tree" of {label, line,
@@ -189,69 +191,68 @@ function programToDisplay(program) {
 }
 
 // -- stage 2: display tree -> JSX with box-drawing connectors -----------
-// Ported from buildTreeDOM: same connector characters, same prefix
-// math. Collapse/expand state lives in the parent AstTree component (a
-// Set of collapsed node ids) rather than toggling `hidden` on raw DOM
-// nodes directly, since React owns the DOM here - the visible behavior
-// (click a label with children to collapse/expand it, showing " ..."
-// while collapsed) is identical.
+// Same connector characters and prefix math as the original. Collapse
+// state is a Set of collapsed node ids ("root", "root.0", "root.0.1",
+// ...) held by AstTree. Clicking a node with children toggles it.
 
-function TreeNode({ node, nodeId, prefix, isLast, isRoot, collapsed, onToggle, siblingIndex }) {
+function TreeNode({ node, nodeId, prefix, isLast, isRoot, collapsed, onToggle }) {
   const hasChildren = !!(node.children && node.children.length);
   const isCollapsed = collapsed.has(nodeId);
   const childPrefix = isRoot ? "" : prefix + (isLast ? "    " : "│   ");
-  // A small stagger by sibling position (not global order) - deep trees
-  // still finish animating quickly since each level restarts the count,
-  // rather than the whole tree animating in strict top-to-bottom order.
-  const delay = Math.min(siblingIndex * 0.035, 0.3);
+  const Chevron = isCollapsed ? ChevronRight : ChevronDown;
+  const hasLine = node.line !== null && node.line !== undefined;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -6 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.22, delay, ease: "easeOut" }}
-      className="whitespace-pre font-mono text-[13px] leading-6"
-      title={node.line !== null && node.line !== undefined ? "line " + node.line : undefined}
-    >
-      <span className="text-ink-soft/60 dark:text-ink-dark-soft/50">
-        {isRoot ? "" : prefix + (isLast ? "└── " : "├── ")}
-      </span>
-      <span
-        className={
-          hasChildren
-            ? "cursor-pointer text-ink transition-colors hover:text-stage-rose dark:text-ink-dark dark:hover:text-stage-rose-dark"
-            : "text-ink dark:text-ink-dark"
-        }
-        onClick={hasChildren ? () => onToggle(nodeId) : undefined}
-      >
-        {node.label}
-      </span>
-      {hasChildren && isCollapsed && <span className="text-ink-soft italic dark:text-ink-dark-soft"> ...</span>}
-      {hasChildren && !isCollapsed && (
-        <div>
-          {node.children.map((child, index) => (
-            <TreeNode
-              key={index}
-              node={child}
-              nodeId={nodeId + "." + index}
-              prefix={childPrefix}
-              isLast={index === node.children.length - 1}
-              isRoot={false}
-              collapsed={collapsed}
-              onToggle={onToggle}
-              siblingIndex={index}
-            />
-          ))}
-        </div>
-      )}
-    </motion.div>
+    <div className="font-mono text-[12px] leading-6 whitespace-pre">
+      <div className="group flex items-center hover:bg-hover">
+        <span className="text-faint/70">{isRoot ? "" : prefix + (isLast ? "└── " : "├── ")}</span>
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={() => onToggle(nodeId)}
+            aria-expanded={!isCollapsed}
+            className="inline-flex items-center gap-1 rounded-sm text-fg hover:text-stage-rose focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:outline-none"
+          >
+            <Chevron size={12} strokeWidth={1.75} className="text-faint" />
+            {node.label}
+          </button>
+        ) : (
+          <span className="text-fg">{node.label}</span>
+        )}
+        {hasChildren && isCollapsed && <span className="text-faint"> ...</span>}
+        {hasLine && <span className="ml-3 text-[11px] text-faint opacity-0 group-hover:opacity-100">line {node.line}</span>}
+      </div>
+      {hasChildren && !isCollapsed &&
+        node.children.map((child, index) => (
+          <TreeNode
+            key={index}
+            node={child}
+            nodeId={nodeId + "." + index}
+            prefix={childPrefix}
+            isLast={index === node.children.length - 1}
+            isRoot={false}
+            collapsed={collapsed}
+            onToggle={onToggle}
+          />
+        ))}
+    </div>
   );
 }
 
-// `ast` is the raw AST JSON from the backend (data.ast - dumpAst()'s
+// Every node id that has children, for "Collapse all".
+function collapsibleIds(node, nodeId, out = []) {
+  if (node.children && node.children.length) {
+    out.push(nodeId);
+    node.children.forEach((child, index) => collapsibleIds(child, nodeId + "." + index, out));
+  }
+  return out;
+}
+
+// `ast` is the raw AST JSON from the backend (data.ast, dumpAst()'s
 // output, forwarded through app.py unchanged).
 export default function AstTree({ ast }) {
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const tree = programToDisplay(ast);
 
   function toggle(nodeId) {
     setCollapsed((prev) => {
@@ -265,19 +266,30 @@ export default function AstTree({ ast }) {
     });
   }
 
-  const tree = programToDisplay(ast);
+  // Collapse all keeps the root and its functions open, so the list of
+  // functions stays visible.
+  function collapseAll() {
+    const ids = collapsibleIds(tree, "root").filter((id) => id.split(".").length > 2);
+    setCollapsed(new Set(ids));
+  }
+
   return (
-    <div className="overflow-x-auto rounded-xl border border-accent-soft-border bg-paper-raised p-5 shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark">
-      <TreeNode
-        node={tree}
-        nodeId="root"
-        prefix=""
-        isLast
-        isRoot
-        collapsed={collapsed}
-        onToggle={toggle}
-        siblingIndex={0}
-      />
-    </div>
+    <>
+      <PanelHeader label="Syntax tree">
+        <span className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setCollapsed(new Set())}>
+            <ChevronsUpDown size={14} strokeWidth={1.75} />
+            Expand all
+          </Button>
+          <Button variant="ghost" size="sm" onClick={collapseAll}>
+            <ChevronsDownUp size={14} strokeWidth={1.75} />
+            Collapse all
+          </Button>
+        </span>
+      </PanelHeader>
+      <div className="overflow-x-auto px-3 py-2">
+        <TreeNode node={tree} nodeId="root" prefix="" isLast isRoot collapsed={collapsed} onToggle={toggle} />
+      </div>
+    </>
   );
 }

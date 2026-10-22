@@ -1,129 +1,100 @@
-/* Fraunces: the display/heading serif. Chosen deliberately over a more
-   neutral editorial serif (Source Serif, Georgia) because it has real
-   character - a soft, slightly warm, slightly quirky contrast serif
-   with a wide optical-size range (it was designed for exactly this:
-   large display use, not body-copy reading) - while still reading as
-   confident and current rather than "vintage." It's the same family of
-   choice behind a lot of the current wave of editorial-tech sites this
-   direction is explicitly modeled on. Loaded at only the weights/styles
-   actually used (400/500/600/700 + a 600 italic for the occasional
-   editorial emphasis) rather than the whole variable-font surface. */
-@import "@fontsource/fraunces/400.css";
-@import "@fontsource/fraunces/500.css";
-@import "@fontsource/fraunces/600.css";
-@import "@fontsource/fraunces/700.css";
-@import "@fontsource/fraunces/600-italic.css";
+/* Geist Sans for UI, Geist Mono for code. Both come from @fontsource,
+   so the font files are bundled into dist and work offline. Only the
+   weights actually used are imported. */
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
 
 @import "tailwindcss";
 
-/* Class-based dark mode (a nav toggle, not just OS preference) - Tailwind
-   v4's CSS-first way of opting into `dark:` meaning ".dark ancestor"
-   instead of the prefers-color-scheme media query default. */
-@custom-variant dark (&:where(.dark, .dark *));
-
+/* Design tokens. Dark only: one charcoal base, panels one step lighter,
+   1px borders at low white opacity, and a neutral off-white accent for
+   interactive elements. The 7 stage colors are reserved for small stage
+   markers (dots, badges, the status bar). */
 @theme {
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
 
-  /* Warm off-white / near-black ink, one confident accent (indigo), and
-     a warm-neutral (stone) scale for borders/secondary text - no
-     multi-color accent system this time. */
-  --color-paper: #fafaf8;
-  --color-paper-raised: #ffffff;
-  --color-ink: #1a1a1a;
-  --color-ink-soft: #55534d;
+  --color-app: #111214;
+  --color-panel: #17181b;
+  --color-raised: #1d1e22;
+  --color-hover: #232428;
 
-  --color-accent: #3730a3;
-  --color-accent-hover: #2e2687;
-  --color-accent-soft: #eeecfb;
-  --color-accent-soft-border: #d8d4f5;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.12);
 
-  /* Dark-mode counterparts: a warm charcoal (not pure black, keeping the
-     same "warm" temperature as the light paper) and a lightened accent
-     for AA contrast against it. */
-  --color-paper-dark: #18171c;
-  --color-paper-dark-raised: #201f26;
-  --color-ink-dark: #f2f0ea;
-  --color-ink-dark-soft: #a8a5ab;
-  --color-accent-dark: #9490e0;
-  --color-accent-dark-soft: #2a2650;
+  --color-fg: #e6e6e8;
+  --color-muted: #9a9ba1;
+  --color-faint: #6b6c72;
 
-  /* The 7-stage pipeline spectrum. Indigo above stays the neutral UI
-     color (nav, buttons, generic links); these seven are reserved for
-     stage-identity moments only (badges, the pipeline strip, the
-     landing diagram, per-page washes). Chosen as one coherent warm-to-
-     cool family telling the pipeline's own story - amber/orange at the
-     raw, unprocessed start; rose/violet through the structural middle
-     (parsing, IR); blue as the analytical optimizer; emerald for
-     energy (keeping the green association consistent with every
-     earlier pass); teal as the cool, resolved endpoint. Deliberately
-     NOT indigo/violet at the Optimizer stage, so it never gets
-     mistaken for the neutral accent. Each has a light- and dark-mode
-     shade, same pairing pattern as --color-accent/-accent-dark above. */
-  --color-stage-amber: #b45309;
-  --color-stage-amber-dark: #fbbf24;
-  --color-stage-orange: #c2410c;
-  --color-stage-orange-dark: #fb923c;
-  --color-stage-rose: #be123c;
-  --color-stage-rose-dark: #fb7185;
-  --color-stage-violet: #6d28d9;
-  --color-stage-violet-dark: #a78bfa;
-  --color-stage-blue: #1d4ed8;
-  --color-stage-blue-dark: #60a5fa;
-  --color-stage-emerald: #047857;
-  --color-stage-emerald-dark: #34d399;
-  --color-stage-teal: #0f766e;
-  --color-stage-teal-dark: #2dd4bf;
+  --color-accent: #e6e6e8;
+  --color-accent-fg: #111214;
 
-  /* Soft, warm, multi-layer elevation - not Tailwind's flat default
-     shadow. Three stacked layers (contact, ambient, glow) read as a
-     single soft lift rather than a hard drop shadow. Dark-mode variants
-     lean on plain black, since a warm-tinted shadow disappears against
-     a dark surface - the lift there comes from opacity/spread instead. */
-  --shadow-soft: 0 1px 2px 0 rgb(26 20 10 / 0.04), 0 6px 16px -4px rgb(26 20 10 / 0.08),
-    0 20px 40px -16px rgb(26 20 10 / 0.07);
-  --shadow-soft-lg: 0 2px 4px 0 rgb(26 20 10 / 0.06), 0 14px 28px -6px rgb(26 20 10 / 0.14),
-    0 28px 56px -18px rgb(26 20 10 / 0.12);
-  --shadow-soft-dark: 0 1px 2px 0 rgb(0 0 0 / 0.35), 0 10px 24px -6px rgb(0 0 0 / 0.4);
-  --shadow-soft-dark-lg: 0 2px 4px 0 rgb(0 0 0 / 0.4), 0 18px 36px -8px rgb(0 0 0 / 0.5);
+  --color-danger: #f87171;
+
+  --color-stage-amber: #fbbf24;
+  --color-stage-orange: #fb923c;
+  --color-stage-rose: #fb7185;
+  --color-stage-violet: #a78bfa;
+  --color-stage-blue: #60a5fa;
+  --color-stage-emerald: #34d399;
+  --color-stage-teal: #2dd4bf;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --animate-page-in: page-in 160ms ease-out;
+
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
   margin: 0;
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--color-app);
+  color: var(--color-fg);
   font-family: var(--font-sans);
-}
-
-.dark body {
-  background: var(--color-paper-dark);
-  color: var(--color-ink-dark);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 }
 
 ::selection {
-  background: var(--color-accent-soft-border);
-  color: var(--color-accent);
+  background: rgb(255 255 255 / 0.18);
 }
 
-/* Very subtle grain, for warmth on the large flat background areas -
-   an editorial/print texture, not a pattern anyone should consciously
-   notice. Pure inline SVG fractal noise (no image asset, no
-   dependency), fixed so it doesn't scroll with content, and inert to
-   pointer events. Opacity is intentionally low (2.5%) and identical in
-   both themes since it's reading grain-on-paper either way. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.025;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+/* Removed IR lines (IrPage): a thin violet bar in the gutter plus a
+   faint tint across the line. Monaco applies these class names as
+   whole-line decorations. */
+.ir-removed-line {
+  background: rgb(167 139 250 / 0.1);
+}
+.ir-removed-gutter {
+  border-left: 2px solid var(--color-stage-violet);
 }
 
-.dark body::before {
-  mix-blend-mode: overlay;
-  opacity: 0.04;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

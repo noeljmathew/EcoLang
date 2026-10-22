@@ -1,8 +1,8 @@
-import { AnimatePresence } from "framer-motion";
 import { Route, Routes, useLocation } from "react-router-dom";
-import NavBar from "./components/NavBar";
-import PageTransition from "./components/PageTransition";
-import PageWash from "./components/PageWash";
+import TopBar from "./components/shell/TopBar";
+import ActivityRail from "./components/shell/ActivityRail";
+import StatusBar from "./components/shell/StatusBar";
+import { TooltipProvider } from "./components/ui/tooltip";
 import LandingPage from "./pages/LandingPage";
 import CompilePage from "./pages/CompilePage";
 import TokensPage from "./pages/TokensPage";
@@ -13,37 +13,36 @@ import EnergyPage from "./pages/EnergyPage";
 import CodegenPage from "./pages/CodegenPage";
 import WaterPage from "./pages/WaterPage";
 
-// The nav bar is rendered once here, outside <Routes>, so it's
-// persistent across every route instead of being part of any one page.
-// <Routes location={location}> pinned to the current location (rather
-// than letting Routes read it implicitly) is what lets <AnimatePresence
-// mode="wait"> see the outgoing page during its exit animation before
-// the new one mounts - the standard pairing for React Router + Framer
-// Motion page transitions.
+// The IDE shell: top bar, activity rail, the routed page, status bar.
+// The page wrapper is keyed by path so each navigation replays the
+// short fade-in (animate-page-in in index.css).
 export default function App() {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-paper text-ink dark:bg-paper-dark dark:text-ink-dark">
-      <PageWash />
-      <NavBar />
-      <main className="flex-1 overflow-x-hidden px-6 py-6 md:px-10">
-        <div className="mx-auto max-w-5xl">
-          <AnimatePresence mode="wait">
-            <Routes location={location} key={location.pathname}>
-              <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
-              <Route path="/compile" element={<PageTransition><CompilePage /></PageTransition>} />
-              <Route path="/tokens" element={<PageTransition><TokensPage /></PageTransition>} />
-              <Route path="/ast" element={<PageTransition><AstPage /></PageTransition>} />
-              <Route path="/ir" element={<PageTransition><IrPage /></PageTransition>} />
-              <Route path="/optimizer" element={<PageTransition><OptimizerPage /></PageTransition>} />
-              <Route path="/energy" element={<PageTransition><EnergyPage /></PageTransition>} />
-              <Route path="/codegen" element={<PageTransition><CodegenPage /></PageTransition>} />
-              <Route path="/water" element={<PageTransition><WaterPage /></PageTransition>} />
-            </Routes>
-          </AnimatePresence>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-full flex-col">
+        <TopBar />
+        <div className="flex min-h-0 flex-1">
+          <ActivityRail />
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div key={location.pathname} className="h-full animate-page-in">
+              <Routes location={location}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/compile" element={<CompilePage />} />
+                <Route path="/tokens" element={<TokensPage />} />
+                <Route path="/ast" element={<AstPage />} />
+                <Route path="/ir" element={<IrPage />} />
+                <Route path="/optimizer" element={<OptimizerPage />} />
+                <Route path="/energy" element={<EnergyPage />} />
+                <Route path="/codegen" element={<CodegenPage />} />
+                <Route path="/water" element={<WaterPage />} />
+              </Routes>
+            </div>
+          </main>
         </div>
-      </main>
-    </div>
+        <StatusBar />
+      </div>
+    </TooltipProvider>
   );
 }

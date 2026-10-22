@@ -2,9 +2,8 @@ import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
 import AstTree from "../components/AstTree";
 import PageHeading from "../components/PageHeading";
+import { PageBody, Panel } from "../components/Panel";
 
-// AST panel (collapse/expand, box-drawing connectors - see
-// components/AstTree.jsx). No disclaimer:
 // data.ast is real output from the compiler's own parser (dumpAst() in
 // src/dump.cpp), not the old independent Python parser.
 export default function AstPage() {
@@ -14,10 +13,18 @@ export default function AstPage() {
   return (
     <section>
       <PageHeading
-        title="Abstract Syntax Tree"
-        description="The parser's real output, straight from the compiler's own dumpAst() - click a node to collapse or expand it."
+        title="Abstract syntax tree"
+        description="The parser's real output from dumpAst(). Click a node to collapse or expand it."
       />
-      {ast ? <AstTree ast={ast} /> : <EmptyState />}
+      {ast ? (
+        <PageBody>
+          <Panel>
+            <AstTree ast={ast} />
+          </Panel>
+        </PageBody>
+      ) : (
+        <EmptyState />
+      )}
     </section>
   );
 }

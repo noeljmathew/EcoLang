@@ -1,16 +1,19 @@
 import { Link } from "react-router-dom";
+import { FileCode } from "lucide-react";
+import { Button } from "./ui/button";
 
-// Shown by every stage page when there's no compiled result in context
-// yet (nothing compiled this session, and nothing persisted from a
-// previous one either).
+// Shown by every stage page when there is no compiled result yet
+// (nothing compiled this session, and nothing persisted from before).
 export default function EmptyState() {
   return (
-    <p className="rounded-lg border border-dashed border-accent-soft-border bg-paper-raised px-6 py-8 text-ink-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:text-ink-dark-soft">
-      Nothing compiled yet — go to the{" "}
-      <Link to="/compile" className="font-medium text-accent underline underline-offset-2 hover:text-accent-hover dark:text-accent-dark">
-        compiler
-      </Link>
-      .
-    </p>
+    <div className="m-4 flex flex-col items-start gap-3 rounded-md border border-dashed border-line-strong p-6 md:m-6">
+      <p className="text-[13px] text-muted">Nothing compiled yet. Compile a program to see this stage.</p>
+      <Button asChild size="sm">
+        <Link to="/compile">
+          <FileCode size={14} strokeWidth={1.75} />
+          Open the compiler
+        </Link>
+      </Button>
+    </div>
   );
 }

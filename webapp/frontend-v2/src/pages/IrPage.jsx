@@ -1,64 +1,68 @@
 import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
 import PageHeading from "../components/PageHeading";
+import CodeView from "../components/CodeView";
+import { PanelHeader } from "../components/Panel";
+import { ResizableGroup, ResizableHandle, ResizablePanel } from "../components/ui/resizable";
+import { useIsNarrow } from "../lib/useIsNarrow";
 
-// IR is stage 3 - violet (see stageColors.js). Used directly below for
-// the "didn't survive optimization" line highlight, tying this page's
-// one small accent detail to its own spectrum color instead of the
-// neutral UI accent.
-
-// "After" is just data.codegen
-// shown plainly (the optimized IR's pseudo-assembly rendering); "Before"
-// is checked line-by-line against the full set of "After" lines and
-// flagged if it doesn't survive optimization - a presence check, not a
+// "After" is data.codegen (the optimized IR's pseudo-assembly). Each
+// "Before" line is checked against the set of "After" lines and
+// highlighted if it does not appear there: a presence check, not a
 // real diff.
 export default function IrPage() {
   const { lastResult } = useCompile();
+  const narrow = useIsNarrow();
   const irBefore = lastResult?.irBefore;
   const irAfter = lastResult?.codegen;
   const hasData = irBefore !== undefined && irAfter !== undefined;
 
-  const afterLines = hasData ? new Set(irAfter.split("\n")) : null;
+  const afterLines = hasData ? new Set(irAfter.split("\n")) : new Set();
   const beforeLines = hasData ? irBefore.split("\n") : [];
+  // 1-based line numbers, as Monaco counts them.
+  const removedLineNumbers = beforeLines.flatMap((line, i) => (afterLines.has(line) ? [] : [i + 1]));
+
+  function highlightRemoved(editor) {
+    editor.createDecorationsCollection(
+      removedLineNumbers.map((lineNumber) => ({
+        range: { startLineNumber: lineNumber, startColumn: 1, endLineNumber: lineNumber, endColumn: 1 },
+        options: { isWholeLine: true, className: "ir-removed-line", linesDecorationsClassName: "ir-removed-gutter" },
+      }))
+    );
+  }
 
   return (
-    <section>
+    <section className="flex h-full min-h-[480px] flex-col">
       <PageHeading
-        title="Intermediate Representation"
-        description="Before and after the optimizer - a highlighted line in “Before” didn't survive optimization."
+        title="Intermediate representation"
+        description="Before and after the optimizer. Highlighted lines in Before did not survive optimization."
       />
       {!hasData ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <div>
-            <div className="mb-2 text-xs font-medium tracking-wide text-ink-soft uppercase dark:text-ink-dark-soft">
-              Before optimization
-            </div>
-            <div className="overflow-x-auto rounded-xl border border-accent-soft-border bg-paper-raised p-4 font-mono text-[13px] leading-6 shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:shadow-soft-dark">
-              {beforeLines.map((line, index) => (
-                <div
-                  key={index}
-                  className={
-                    "whitespace-pre " +
-                    (afterLines.has(line)
-                      ? "text-ink dark:text-ink-dark"
-                      : "-mx-4 border-l-2 border-stage-violet bg-stage-violet/10 px-4 text-ink dark:border-stage-violet-dark dark:bg-stage-violet-dark/15 dark:text-ink-dark")
-                  }
-                >
-                  {line}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="mb-2 text-xs font-medium tracking-wide text-ink-soft uppercase dark:text-ink-dark-soft">
-              After optimization
-            </div>
-            <pre className="overflow-x-auto rounded-xl border border-accent-soft-border bg-paper-raised p-4 font-mono text-[13px] leading-6 whitespace-pre text-ink shadow-soft dark:border-accent-dark-soft dark:bg-paper-dark-raised dark:text-ink-dark dark:shadow-soft-dark">
-              {irAfter}
-            </pre>
-          </div>
+        <div className="min-h-0 flex-1">
+          <ResizableGroup orientation={narrow ? "vertical" : "horizontal"} key={narrow ? "v" : "h"}>
+            <ResizablePanel defaultSize="50" minSize="20" className="flex flex-col">
+              <PanelHeader label="Before optimization" className="bg-panel">
+                <span className="flex items-center gap-2 font-mono">
+                  <span className="h-3 w-0.5 bg-stage-violet" />
+                  {removedLineNumbers.length} {removedLineNumbers.length === 1 ? "line" : "lines"} removed
+                </span>
+              </PanelHeader>
+              <div className="min-h-0 flex-1">
+                <CodeView value={irBefore} onMount={highlightRemoved} />
+              </div>
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel defaultSize="50" minSize="20" className="flex flex-col">
+              <PanelHeader label="After optimization" className="bg-panel">
+                <span className="font-mono">{irAfter.split("\n").length} lines</span>
+              </PanelHeader>
+              <div className="min-h-0 flex-1">
+                <CodeView value={irAfter} />
+              </div>
+            </ResizablePanel>
+          </ResizableGroup>
         </div>
       )}
     </section>
