@@ -82,7 +82,11 @@ std::string CodeGenerator::generateInstruction(const IRInstruction& instruction)
             return "FUNC_END " + instruction.functionName;
 
         case IROpcode::CALL: {
-            std::string line = "CALL " + instruction.destination + ", " + instruction.functionName;
+            // No destination (e.g. the synthetic entry-point CALL main):
+            // print "CALL f" rather than "CALL , f".
+            std::string line = instruction.destination.empty()
+                                   ? "CALL " + instruction.functionName
+                                   : "CALL " + instruction.destination + ", " + instruction.functionName;
             for (const IROperand& argument : instruction.operandList) {
                 line += ", " + operandToText(argument);
             }
