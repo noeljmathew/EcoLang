@@ -12,7 +12,7 @@
 export const SITE_WUE_LITERS_PER_KWH = 1.8;
 
 export const WUE_CITATION =
-  "Site Water Usage Effectiveness (WUE): 1.8 L/kWh — U.S. average, Shehabi et al. (2016), " +
+  "Site Water Usage Effectiveness (WUE): 1.8 L/kWh, U.S. average, Shehabi et al. (2016), " +
   "United States Data Center Energy Usage Report, Lawrence Berkeley National Laboratory, LBNL-1005775.";
 
 // joules -> kWh (÷ 3,600,000, the definition of a kWh in joules) -> site
