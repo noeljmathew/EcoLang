@@ -3,8 +3,7 @@ import { useCompile } from "../context/CompileContext";
 import PipelineStrip from "../components/PipelineStrip";
 import PageHeading from "../components/PageHeading";
 
-// Ported as-is from the old index.html's SAMPLES constant and the
-// textarea's own default content (hello.c in both places).
+// Sample programs for the editor; hello.c is also the default content.
 const SAMPLES = {
   hello: `// Computes the cost of a simple order, including tax, and prints a
 // summary. Demonstrates declarations, arithmetic, a function with

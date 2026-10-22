@@ -7,7 +7,7 @@ import PageHeading from "../components/PageHeading";
 // one small accent detail to its own spectrum color instead of the
 // neutral UI accent.
 
-// Ported from the old index.html's IR tab. "After" is just data.codegen
+// "After" is just data.codegen
 // shown plainly (the optimized IR's pseudo-assembly rendering); "Before"
 // is checked line-by-line against the full set of "After" lines and
 // flagged if it doesn't survive optimization - a presence check, not a

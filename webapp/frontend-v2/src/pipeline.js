@@ -1,14 +1,14 @@
-// Ported from the old webapp/frontend/index.html's pipeline-strip JS
-// (determineFailedStageIndex / renderPipeline) so the failed-stage
-// detection logic doesn't drift from the original - same stage order,
-// same error-prefix checks, same fallback to -1 for anything else.
+// Pipeline-strip logic, originally written for the first single-page
+// frontend (since removed): the fixed stage order, and failed-stage
+// detection from the compiler's error-message prefixes, falling back
+// to -1 for anything else.
 
 export const PIPELINE_STAGES = ["SOURCE", "LEXER", "AST", "IR", "OPTIMIZER", "ENERGY", "CODEGEN"];
 
 // Returns the index (into PIPELINE_STAGES) of the stage that failed, or
 // -1 if there's no stage-level information (e.g. a network failure -
 // the message won't start with any of the known compiler error prefixes,
-// so it falls through to the same -1 the old page used for that case).
+// so it falls through to -1).
 export function determineFailedStageIndex(errorMessage) {
   const message = String(errorMessage || "");
   if (message.startsWith("Lexical error")) return 1; // LEXER

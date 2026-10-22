@@ -2,8 +2,7 @@ import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
 import PageHeading from "../components/PageHeading";
 
-// Ported as-is from the old index.html's Code Generation tab: the
-// optimized program's pseudo-assembly, shown plainly.
+// The optimized program's pseudo-assembly, shown plainly.
 export default function CodegenPage() {
   const { lastResult } = useCompile();
   const codegen = lastResult?.codegen;

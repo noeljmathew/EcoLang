@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 
-// Ported as-is from the old index.html's AST panel (stage 1: raw AST ->
-// "display tree" of {label, line, children} nodes). Framework-agnostic
-// on purpose - these are the exact same functions, just no longer
-// building DOM nodes directly (stage 2 below does that part, as JSX).
+// Originally written for the first single-page frontend's AST panel,
+// since removed. Stage 1: raw AST -> "display tree" of {label, line,
+// children} nodes, framework-agnostic on purpose. Stage 2 below builds
+// the actual elements, as JSX.
 
 function isSimpleLeafExpr(expr) {
   return expr.type === "Number" || expr.type === "Variable";

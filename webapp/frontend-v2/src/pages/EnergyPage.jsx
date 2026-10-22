@@ -4,7 +4,7 @@ import EmptyState from "../components/EmptyState";
 import PageHeading from "../components/PageHeading";
 import WaterTeaser from "../components/WaterTeaser";
 
-// Ported from the old index.html's Energy Report tab: headline stats,
+// Energy Report page: headline stats,
 // the five per-category operation-count bars (scaled to the largest of
 // the five for this specific compile, not a fixed global max), and the
 // full key/value table.

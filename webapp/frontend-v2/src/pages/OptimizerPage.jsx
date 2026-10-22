@@ -2,9 +2,8 @@ import { useCompile } from "../context/CompileContext";
 import EmptyState from "../components/EmptyState";
 import PageHeading from "../components/PageHeading";
 
-// Ported from the old index.html's Optimization tab: a headline
-// "before -> after" instruction-count figure, plus the individual pass
-// counts. Reads the same data.optimization fields the old table did.
+// A headline "before -> after" instruction-count figure, plus the
+// individual pass counts, from data.optimization.
 const PASS_LABELS = [
   "Constant Folding",
   "Constant Propagation",
